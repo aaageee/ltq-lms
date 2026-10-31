@@ -73,7 +73,10 @@ Branch   : development
 
 ## Masalah Aktif
 <!-- Catat bug atau blocker yang belum selesai -->
-- ⏳ Deploy review ke GitHub Pages: menunggu repo `ltq-lms` dibuat di akun GitHub `aaageee` (SSH sudah terhubung). Workflow `.github/workflows/deploy-pages.yml` sudah siap → URL nanti `https://aaageee.github.io/ltq-lms/`
+- ✅ **Review live**: https://aaageee.github.io/ltq-lms/ (GitHub Pages, auto-deploy saat push ke `development`). Repo: https://github.com/aaageee/ltq-lms
+  - Login dummy (dev mode) aktif di build Pages — 5 tombol login cepat tersedia
+  - Deploy ulang: push ke `development` → workflow `Deploy ke GitHub Pages` jalan otomatis (~2 menit)
+  - Pages Source wajib di-set **GitHub Actions** (sudah diaktifkan 1 Nov 2026)
 
 ## Keputusan Terbuka
 <!-- Dari EVALUASI.md §4 -->

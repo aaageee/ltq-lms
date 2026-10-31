@@ -50,4 +50,6 @@ Docker Compose (Postgres + backend + frontend) menyusul di modul **M0-B**.
 
 ## Status Build
 
+**Review UI (live):** https://aaageee.github.io/ltq-lms/ — login dummy (5 tombol login cepat), data dummy. Deploy otomatis via GitHub Actions setiap push ke `development`.
+
 Lihat `PROGRESS.md`. Modul: M0 (setup) → M1 (auth) → M2 (admin) → M3 (PSB) → M4 (SPP) → M5–M6 (guru) → M7 (bendahara) → M10 (cron).
