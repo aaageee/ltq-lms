@@ -9,7 +9,7 @@ Branch   : development
 
 ### MVP (Target: 4–6 minggu)
 - [x] M0-A — Setup monorepo + struktur folder
-- [ ] M0-B — Prisma schema + Docker Compose (postgres/backend/frontend saja)
+- [x] M0-B — Prisma schema + Docker Compose (postgres/backend/frontend saja)
 - [ ] M1-A — Backend auth (login, JWT, middleware RBAC, seeder 5 akun)
 - [ ] M1-B — Frontend login + shortcut dev + dashboard dummy semua role
 - [ ] M2   — Admin: CRUD program, kelas, guru
@@ -30,6 +30,14 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M0-B
+- Status: ✅ selesai (1 Nov 2026)
+- Prisma schema lengkap 21 model + 14 enum; migration `20261031172904_init` terpasang & client generated
+- DB lokal: `ltq_lms` @ `kursus:kursus_dev@localhost:5432` (kredensial di `backend/.env`, Docker tidak tersedia)
+- docker-compose.yml (postgres+backend+frontend, tanpa redis/minio) + Dockerfile + .dockerignore — ⚠️ belum dites (tidak ada Docker di mesin dev)
+- Nama kolom ikut konvensi Prisma camelCase (PRD §6 snake_case hanya konseptual)
+- Frontend pakai `next.config.mjs` (bukan .ts) — Dockerfile menyesuaikan
+
 ### M0-A
 - Status: ✅ selesai (1 Nov 2026)
 - Next.js 14 → **16.4.3** (React 19, ESLint 9 flat config `eslint-config-next@16`) — alasan: 14 sudah EOL, 21 vulnerability tanpa patch; 16.4.3 audit **0 vuln**
@@ -49,7 +57,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- M0-A: Setup monorepo
+- M1-A: Backend auth (login, JWT access 15m + refresh cookie 7d, middleware RBAC, seeder 5 akun)
 
 ## Catatan Pindah IDE
 <!-- Catat jika ada hal khusus yang perlu diketahui IDE baru -->

@@ -1,0 +1,434 @@
+// LTQ Markaz AlQuran LMS — Prisma Schema (M0-B)
+// Konvensi kolom: mengikuti Prisma (camelCase di DB).
+// Aturan bisnis divalidasi aplikasi; yang bisa ditekan di DB diberi @@unique.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────── ENUM ───────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN_CABANG
+  GURU
+  TU
+  BENDAHARA
+}
+
+enum Gender {
+  L
+  P
+}
+
+enum StudentStatus {
+  active
+  inactive
+  cuti
+}
+
+enum EnrollmentStatus {
+  active
+  completed
+  dropped
+}
+
+enum StudentAttendanceStatus {
+  hadir
+  absen
+  izin
+  sakit
+}
+
+enum TeacherAttendanceStatus {
+  hadir
+  badal
+}
+
+enum GradeType {
+  harian
+  ujian
+}
+
+enum InvoiceStatus {
+  unpaid
+  paid
+  overdue
+  cancelled
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+}
+
+enum LevelUpStatus {
+  pending
+  approved
+  rejected
+}
+
+enum DuSemester {
+  S1
+  S2
+}
+
+enum WaStatus {
+  sent
+  failed
+}
+
+// ─────────────── INTI ───────────────
+
+model Branch {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  address     String?
+  phone       String?
+  logoUrl     String?
+  bankAccount String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  users    User[]
+  programs Program[]
+  classes  Class[]
+  students Student[]
+  invoices Invoice[]
+  cashIns  CashIn[]
+  cashOuts CashOut[]
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  branchId     Int?
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch           Branch?          @relation(fields: [branchId], references: [id])
+  teacherProfile   Teacher?
+  confirmedPayments Payment[]       @relation("PaymentConfirmedBy")
+  cancelledInvoices Invoice[]       @relation("InvoiceCancelledBy")
+  cashInsCreated   CashIn[]         @relation("CashInCreatedBy")
+  cashOutsCreated  CashOut[]        @relation("CashOutCreatedBy")
+  payrollComponent PayrollComponent?
+  payrollSlips     Payroll[]
+  approvedLeaves   TeacherLeave[]   @relation("LeaveApprovedBy")
+  levelRequested   LevelUpRequest[] @relation("LevelRequestedBy")
+  levelReviewed    LevelUpRequest[] @relation("LevelReviewedBy")
+}
+
+model Teacher {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  name           String
+  whatsapp       String
+  specialization String?
+  isActive       Boolean  @default(true)
+  deletedAt      DateTime?
+
+  user             User          @relation(fields: [userId], references: [id])
+  classes          Class[]
+  grades           Grade[]
+  attendances      Attendance[]  @relation("AttendanceTeacher")
+  badalAttendances Attendance[]  @relation("AttendanceBadal")
+  leaves           TeacherLeave[] @relation("LeaveTeacher")
+  badalForLeaves   TeacherLeave[] @relation("LeaveBadalTeacher")
+}
+
+model Program {
+  id        Int      @id @default(autoincrement())
+  branchId  Int
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  branch      Branch       @relation(fields: [branchId], references: [id])
+  classes     Class[]
+  enrollments Enrollment[]
+}
+
+model Class {
+  id           Int     @id @default(autoincrement())
+  branchId     Int
+  programId    Int
+  teacherId    Int?
+  name         String
+  capacity     Int
+  scheduleDays String // contoh: "Senin,Rabu" — hari aktif kelas
+  scheduleTime String // contoh: "09:00-10:00"
+  room         String?
+  isActive     Boolean @default(true)
+
+  branch       Branch          @relation(fields: [branchId], references: [id])
+  program      Program         @relation(fields: [programId], references: [id])
+  teacher      Teacher?        @relation(fields: [teacherId], references: [id])
+  enrollments  Enrollment[]
+  attendances  Attendance[]
+  grades       Grade[]
+  reportCards  ReportCard[]
+  levelRequests LevelUpRequest[]
+}
+
+model Student {
+  id          Int           @id @default(autoincrement())
+  branchId    Int
+  noid        String        @unique // NoID immutable: LTQ-[KODE]-[TAHUN]-[NNN]
+  name        String
+  whatsapp    String // selalu format 62xx (hasil sanitasi)
+  dob         DateTime?
+  gender      Gender?
+  address     String?
+  photoUrl    String?
+  ktpUrl      String?
+  parentName  String?
+  parentPhone String?
+  status      StudentStatus @default(active)
+  cutiStart   DateTime?
+  cutiEnd     DateTime?
+  cutiReason  String?
+  createdAt   DateTime      @default(now())
+  deletedAt   DateTime? // soft delete
+
+  branch       Branch           @relation(fields: [branchId], references: [id])
+  enrollments  Enrollment[]
+  attendances  Attendance[]
+  grades       Grade[]
+  reportCards  ReportCard[]
+  invoices     Invoice[]
+  payments     Payment[]
+  levelRequests LevelUpRequest[]
+}
+
+model Enrollment {
+  id         Int              @id @default(autoincrement())
+  studentId  Int
+  classId    Int
+  programId  Int
+  level      String?
+  enrolledAt DateTime         @default(now())
+  status     EnrollmentStatus @default(active)
+
+  student Student @relation(fields: [studentId], references: [id])
+  class   Class   @relation(fields: [classId], references: [id])
+  program Program @relation(fields: [programId], references: [id])
+
+  // Bisnis: 1 peserta hanya 1 kelas per program
+  @@unique([studentId, programId])
+}
+
+// ─────────────── KBM ───────────────
+
+model Attendance {
+  id             Int                    @id @default(autoincrement())
+  classId        Int
+  studentId      Int
+  teacherId      Int // guru kelas ATAU guru badal yang input
+  sessionDate    DateTime
+  studentStatus  StudentAttendanceStatus @default(hadir)
+  teacherStatus  TeacherAttendanceStatus @default(hadir)
+  badalTeacherId Int?
+  createdAt      DateTime               @default(now())
+
+  class        Class     @relation(fields: [classId], references: [id])
+  student      Student   @relation(fields: [studentId], references: [id])
+  teacher      Teacher   @relation("AttendanceTeacher", fields: [teacherId], references: [id])
+  badalTeacher Teacher?  @relation("AttendanceBadal", fields: [badalTeacherId], references: [id])
+
+  // Bisnis: 1 baris per siswa per sesi — cegah input dobel
+  @@unique([classId, studentId, sessionDate])
+}
+
+model Grade {
+  id        Int       @id @default(autoincrement())
+  studentId Int
+  classId   Int
+  teacherId Int
+  gradeType GradeType @default(harian)
+  score     Float // 0–100; wajib notes jika < 60 (validasi aplikasi)
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  student Student @relation(fields: [studentId], references: [id])
+  class   Class   @relation(fields: [classId], references: [id])
+  teacher Teacher @relation(fields: [teacherId], references: [id])
+}
+
+model ReportCard {
+  id                  Int      @id @default(autoincrement())
+  studentId           Int
+  classId             Int
+  period              String // format: YYYY-Sn (contoh 2026-S1)
+  finalScore          Float?
+  teacherNotes        String?
+  levelRecommendation String?
+  issuedAt            DateTime?
+  createdAt           DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id])
+  class   Class   @relation(fields: [classId], references: [id])
+
+  // Bisnis: 1 raport per peserta per periode per kelas
+  @@unique([studentId, classId, period])
+}
+
+model LevelUpRequest {
+  id            Int           @id @default(autoincrement())
+  studentId     Int
+  classId       Int
+  fromLevel     String?
+  toLevel       String
+  notes         String?
+  status        LevelUpStatus @default(pending)
+  requestedById Int?
+  reviewedById  Int?
+  reviewedAt    DateTime?
+  createdAt     DateTime      @default(now())
+
+  student     Student @relation(fields: [studentId], references: [id])
+  class       Class   @relation(fields: [classId], references: [id])
+  requestedBy User?   @relation("LevelRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy  User?   @relation("LevelReviewedBy", fields: [reviewedById], references: [id])
+}
+
+model TeacherLeave {
+  id             Int         @id @default(autoincrement())
+  teacherId      Int
+  dateStart      DateTime
+  dateEnd        DateTime
+  reason         String?
+  badalTeacherId Int?
+  status         LeaveStatus @default(pending)
+  approvedById   Int?
+  createdAt      DateTime    @default(now())
+
+  teacher      Teacher  @relation("LeaveTeacher", fields: [teacherId], references: [id])
+  badalTeacher Teacher? @relation("LeaveBadalTeacher", fields: [badalTeacherId], references: [id])
+  approvedBy   User?    @relation("LeaveApprovedBy", fields: [approvedById], references: [id])
+}
+
+// ─────────────── KEUANGAN ───────────────
+
+model Invoice {
+  id             Int           @id @default(autoincrement())
+  studentId      Int
+  branchId       Int
+  period         String // format: YYYY-MM (contoh 2026-01)
+  components     Json // [{ nama, jumlah }]
+  totalAmount    Float
+  dueDate        DateTime
+  status         InvoiceStatus @default(unpaid)
+  cancelReason   String?
+  cancelledById  Int?
+  cancelledAt    DateTime?
+  createdAt      DateTime      @default(now())
+
+  student     Student   @relation(fields: [studentId], references: [id])
+  branch      Branch    @relation(fields: [branchId], references: [id])
+  cancelledBy User?     @relation("InvoiceCancelledBy", fields: [cancelledById], references: [id])
+  payments    Payment[]
+
+  // Bisnis: 1 invoice aktif per peserta per periode (anti duplikat)
+  @@unique([studentId, period])
+}
+
+model Payment {
+  id            Int       @id @default(autoincrement())
+  invoiceId     Int
+  studentId     Int
+  amount        Float // wajib === totalAmount invoice (tanpa parsial)
+  method        String?
+  proofUrl      String?
+  confirmedById Int?
+  confirmedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  student     Student @relation(fields: [studentId], references: [id])
+  confirmedBy User?   @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id])
+}
+
+model CashIn {
+  id          Int      @id @default(autoincrement())
+  branchId    Int
+  category    String // SPP di-derive dari payments (bukan input manual)
+  amount      Float
+  description String?
+  date        DateTime
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  branch    Branch @relation(fields: [branchId], references: [id])
+  createdBy User?  @relation("CashInCreatedBy", fields: [createdById], references: [id])
+}
+
+model CashOut {
+  id          Int      @id @default(autoincrement())
+  branchId    Int
+  category    String
+  amount      Float
+  description String?
+  date        DateTime
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  branch    Branch @relation(fields: [branchId], references: [id])
+  createdBy User?  @relation("CashOutCreatedBy", fields: [createdById], references: [id])
+}
+
+model PayrollComponent {
+  id         Int     @id @default(autoincrement())
+  staffId    Int     @unique // pegawai staf (bukan guru — lihat PRD §9)
+  baseSalary Float
+  allowances Float   @default(0)
+  deductions Float   @default(0)
+  updatedAt  DateTime @updatedAt
+
+  staff User @relation(fields: [staffId], references: [id])
+}
+
+model Payroll {
+  id        Int       @id @default(autoincrement())
+  staffId   Int
+  period    String // format: YYYY-MM
+  netSalary Float
+  slipUrl   String?
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  staff User @relation(fields: [staffId], references: [id])
+
+  @@unique([staffId, period])
+}
+
+// ─────────────── LAINNYA ───────────────
+
+model DuPeriod {
+  id           Int        @id @default(autoincrement())
+  semester     DuSemester
+  tahun        Int
+  deadlineDate DateTime
+  nominalDu    Float
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+}
+
+model WaLog {
+  id          Int       @id @default(autoincrement())
+  recipient   String // format 62xx
+  message     String
+  triggerType String // #1a, #1b, #2, #3, #4, #5
+  status      WaStatus  @default(sent)
+  sentAt      DateTime  @default(now())
+}

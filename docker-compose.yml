@@ -1,0 +1,57 @@
+# Opsi Ringan: postgres + backend + frontend (tanpa redis, tanpa minio)
+# Jalankan dari root: docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ltq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ltq_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-ltq_lms}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ltq} -d ${POSTGRES_DB:-ltq_lms}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ltq}:${POSTGRES_PASSWORD:-ltq_secret}@postgres:5432/${POSTGRES_DB:-ltq_lms}?schema=public
+      BACKEND_PORT: 4000
+      NODE_ENV: ${NODE_ENV:-production}
+      UPLOAD_DIR: /app/uploads
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-ganti_jwt_access_secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-ganti_jwt_refresh_secret}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+      FONNTE_TOKEN: ${FONNTE_TOKEN:-}
+      FONNTE_DEVICE_ID: ${FONNTE_DEVICE_ID:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "4000:4000"
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  uploads:
