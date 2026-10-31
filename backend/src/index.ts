@@ -1,15 +1,28 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import authRoutes from "./routes/auth";
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
+// CORS: izinkan frontend (credentials untuk cookie refresh)
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL ?? "http://localhost:3000",
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
-// M0-A: tanpa route — endpoint API dimulai dari M1-A (auth)
+// routes
+app.use("/api/auth", authRoutes);
+
+// M1-A: route lain menyusul di modul berikutnya (M2: programs/classes/teachers)
+
 const PORT = Number(process.env.BACKEND_PORT ?? 4000);
 
 app.listen(PORT, () => {

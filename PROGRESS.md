@@ -10,7 +10,7 @@ Branch   : development
 ### MVP (Target: 4–6 minggu)
 - [x] M0-A — Setup monorepo + struktur folder
 - [x] M0-B — Prisma schema + Docker Compose (postgres/backend/frontend saja)
-- [ ] M1-A — Backend auth (login, JWT, middleware RBAC, seeder 5 akun)
+- [x] M1-A — Backend auth (login, JWT, middleware RBAC, seeder 5 akun)
 - [ ] M1-B — Frontend login + shortcut dev + dashboard dummy semua role
 - [ ] M2   — Admin: CRUD program, kelas, guru
 - [ ] M3-A — Backend PSB: input peserta, NoID, assign kelas, upload ke /uploads
@@ -30,6 +30,16 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M1-A
+- Status: ✅ selesai (1 Nov 2026)
+- Endpoint: POST /api/auth/login, /refresh, /logout + GET /api/auth/me (tambahan: hydrate state frontend)
+- JWT access 15m + refresh 7d di httpOnly cookie (path: /api/auth, sameSite lax; secure saat NODE_ENV=production)
+- Middleware: `verifyToken.ts` (inject req.user) + `requireRole.ts` (contoh: `requireRole(["ADMIN_CABANG","TU"])`)
+- bcryptjs cost 12 (bukan bcrypt native — portabel di alpine/docker); Zod validasi body login; pesan error sama untuk email tak dikenal & password salah (anti enumeration)
+- Seeder: 1 cabang JKT + 5 akun (superadmin/admin/guru/tu/bendahara@ltq.id), password `admin123` ⚠️ ganti sebelum deploy
+- Test curl: 11 skenario lolos (login sukses/gagal×3, me valid/no-token/palsu, refresh valid/no-cookie, logout)
+- Deps baru: zod, bcryptjs, jsonwebtoken, cookie-parser, ts-node (dev)
+
 ### M0-B
 - Status: ✅ selesai (1 Nov 2026)
 - Prisma schema lengkap 21 model + 14 enum; migration `20261031172904_init` terpasang & client generated
@@ -57,7 +67,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- M1-A: Backend auth (login, JWT access 15m + refresh cookie 7d, middleware RBAC, seeder 5 akun)
+- M1-B: Frontend login + shortcut dev + dashboard dummy semua role (target: tampilan web terlihat)
 
 ## Catatan Pindah IDE
 <!-- Catat jika ada hal khusus yang perlu diketahui IDE baru -->
