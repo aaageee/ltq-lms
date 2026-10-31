@@ -42,6 +42,7 @@ Branch   : development
 - Skeleton loading via `useSimulatedLoad(400ms)` — saat M2 pakai TanStack Query, ganti dengan `isFetching` query
 - Dummy login mode: `NEXT_PUBLIC_DEV_MODE=true` (`.env.local`); set false untuk hit API backend M1-A (sudah jalan di :4000)
 - KPI value pakai wrap (bukan truncate) agar angka rupiah tidak terpotong di layar sempit
+- **Deploy review (GitHub Pages)**: `STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/ltq-lms npm run build` → `out/`; workflow `.github/workflows/deploy-pages.yml` build & publish otomatis saat push ke `development`/`main`. Sudah dites lokal via sub-path `/ltq-lms/` (0 error, 0 request gagal)
 
 ### M1-A
 - Status: ✅ selesai (1 Nov 2026)
@@ -72,7 +73,7 @@ Branch   : development
 
 ## Masalah Aktif
 <!-- Catat bug atau blocker yang belum selesai -->
--
+- ⏳ Deploy review ke GitHub Pages: menunggu repo `ltq-lms` dibuat di akun GitHub `aaageee` (SSH sudah terhubung). Workflow `.github/workflows/deploy-pages.yml` sudah siap → URL nanti `https://aaageee.github.io/ltq-lms/`
 
 ## Keputusan Terbuka
 <!-- Dari EVALUASI.md §4 -->
