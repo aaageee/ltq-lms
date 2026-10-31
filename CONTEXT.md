@@ -46,9 +46,11 @@ Sanitasi nomor WA wajib: `08xx` / `8xx` / `+62xx` → `62xx`
 ## Konvensi Penting
 - Prisma schema  : `/backend/prisma/schema.prisma`
 - Env variables  : `/.env.example`
-- Seeder         : `cd backend && npx ts-node prisma/seed.ts` (5 akun + 1 cabang)
-- Jalankan lokal : `docker compose up -d && cd frontend && npm run dev`
+- Seeder         : `cd backend && npx prisma db seed` (5 akun + 1 cabang; script sudah terdaftar di package.json)
+- Jalankan lokal : backend `cd backend && npm run dev` (:4000) • frontend `cd frontend && npm run dev` (:3000) — Docker hanya untuk deploy VPS
 - Period format  : `YYYY-MM` (SPP), `YYYY-Sn` (raport/DU)
 - Commit format  : `feat(M[N]-[X]): deskripsi singkat`
 - Branch kerja   : `development` → merge ke `main` untuk deploy
 - Password       : min 8 karakter + angka (NFR) — akun default wajib diganti sebelum deploy
+- UI components  : gaya shadcn **tanpa CLI shadcn** — komponen manual di `frontend/src/components/ui/` (jangan install radix/shadcn CLI tanpa keputusan eksplisit)
+- Dev mode login : `NEXT_PUBLIC_DEV_MODE=true` → login dummy (tanpa API); `false` → hit `POST /api/auth/login`

@@ -11,7 +11,7 @@ Branch   : development
 - [x] M0-A — Setup monorepo + struktur folder
 - [x] M0-B — Prisma schema + Docker Compose (postgres/backend/frontend saja)
 - [x] M1-A — Backend auth (login, JWT, middleware RBAC, seeder 5 akun)
-- [ ] M1-B — Frontend login + shortcut dev + dashboard dummy semua role
+- [x] M1-B — Frontend login + shortcut dev + dashboard dummy semua role
 - [ ] M2   — Admin: CRUD program, kelas, guru
 - [ ] M3-A — Backend PSB: input peserta, NoID, assign kelas, upload ke /uploads
 - [ ] M3-B — Frontend PSB: form multi-step + halaman detail peserta
@@ -30,6 +30,19 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M1-B
+- Status: ✅ selesai (1 Nov 2026)
+- **UI terlihat & terverifikasi di browser** — semua route lolos lint + build + 0 console error:
+  `/login`, `/dashboard/admin`, `/dashboard/guru`, `/dashboard/tu`, `/dashboard/bendahara`, `/dashboard/super-admin`
+- Sistem login: form + 5 tombol shortcut (tampil hanya jika `NEXT_PUBLIC_DEV_MODE=true`); redirect per role via `ROLE_HOME`
+- Auth state: Zustand + persist (localStorage key `ltq-auth`); `ProtectedRoute` cek auth+role setelah rehydrate
+- ⚠️ **Deviasi**: shadcn/ui CLI **tidak dipakai** — komponen gaya shadcn (Card/Button/Badge/Input/Table/Skeleton) dibuat manual di `src/components/ui/` (Opsi Ringan: tanpa radix, kontrol penuh)
+- Layout: sidebar collapsible (desktop) + drawer (mobile hamburger), topbar dengan badge role berwarna, ikon lucide-react
+- Chart: Recharts (bar "Peserta per Program" di admin, donut "Komposisi Pemasukan" di bendahara)
+- Skeleton loading via `useSimulatedLoad(400ms)` — saat M2 pakai TanStack Query, ganti dengan `isFetching` query
+- Dummy login mode: `NEXT_PUBLIC_DEV_MODE=true` (`.env.local`); set false untuk hit API backend M1-A (sudah jalan di :4000)
+- KPI value pakai wrap (bukan truncate) agar angka rupiah tidak terpotong di layar sempit
+
 ### M1-A
 - Status: ✅ selesai (1 Nov 2026)
 - Endpoint: POST /api/auth/login, /refresh, /logout + GET /api/auth/me (tambahan: hydrate state frontend)
@@ -67,7 +80,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- M1-B: Frontend login + shortcut dev + dashboard dummy semua role (target: tampilan web terlihat)
+- M2: Admin CRUD program, kelas, guru (backend + frontend, TanStack Query + toast)
 
 ## Catatan Pindah IDE
 <!-- Catat jika ada hal khusus yang perlu diketahui IDE baru -->
