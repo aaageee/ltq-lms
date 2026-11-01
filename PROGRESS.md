@@ -13,7 +13,7 @@ Branch   : development
 - [x] M1-A — Backend auth (login, JWT, middleware RBAC, seeder 5 akun)
 - [x] M1-B — Frontend login + shortcut dev + dashboard dummy semua role
 - [x] M2   — Admin: CRUD program, kelas, guru
-- [ ] M3-A — Backend PSB: input peserta, NoID, assign kelas, upload ke /uploads
+- [x] M3-A — Backend PSB: input peserta, NoID, assign kelas, upload ke /uploads
 - [ ] M3-B — Frontend PSB: form multi-step + halaman detail peserta
 - [ ] M4-A — Backend SPP: invoice, konfirmasi bayar (TU|BENDAHARA), kwitansi PDF
 - [ ] M4-B — Frontend SPP: buat invoice, konfirmasi, download kwitansi
@@ -30,6 +30,25 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M3-A
+- Status: ✅ selesai (1 Nov 2026)
+- **Endpoint** (`/api/students`, role TU saja):
+  - `GET /` — list + filter `status` / `programId` / `classId` / `search` (nama, NoID, WA); response: noid, nama, wa, program, kelas, nama_guru, status
+  - `GET /:id` — detail: biodata + enrollments (program/kelas/jadwal/guru) + invoice & pembayaran + 10 presensi terakhir + 10 nilai terakhir
+  - `POST /` — daftar peserta baru; body terima snake_case (`program_id`, `class_id`, `parent_name`) maupun camelCase
+  - `PUT /:id` — update biodata (WA ikut disanitasi)
+  - `POST /:id/upload-foto` (JPG/PNG) & `/:id/upload-ktp` (JPG/PNG/PDF), maks 2MB → file di `backend/uploads/`
+  - `GET /:id/foto` & `/:id/ktp` — **wajib token** (tanpa token 401); file tidak disajikan sebagai static publik
+  - `POST /:id/nonaktifkan` (status inactive + deletedAt), `POST /:id/cuti` (cuti + rentang tanggal + alasan)
+  - `POST /:id/daftar-ulang` — buat invoice periode semester (`YYYY-Sn`), tolak duplikat 409
+- **Validasi bisnis** saat daftar: kelas aktif & milik cabang, program harus cocok dengan kelas, **kelas wajib punya guru**, **kuota** (`filled < capacity`, penolakan menyertakan `sisaKuota`), WA valid
+- **NoID**: `LTQ-[KODE]-[TAHUN]-[NNN]` via `utils/generateNoID.ts`, dijalankan dalam transaksi `Serializable` (anti nomor bentrok)
+- **WA #1**: template PRD §15 verbatim (`services/wa.ts`) dicatat ke `WaLog` (pengiriman Fonnte di M4-C)
+- Utils: `sanitizeWA.ts` (menggantikan `whatsapp.ts` agar satu sumber), `generateNoID.ts`
+- Seeder: +8 peserta demo (6 aktif, 1 cuti, 1 nonaktif) untuk uji filter
+- ✅ Verifikasi: 22 skenario curl — NoID urut 001→002, sanitasi WA (`+62…`, `0812-…`), tolak kelas tanpa guru, tolak program tidak cocok, tolak kelas penuh + sisaKuota, upload/akses file ber-token, tipe file salah ditolak, cuti/nonaktif, daftar ulang + duplikat, RBAC 403 untuk admin
+- ⚠️ Catatan: `{nominal}` pada WA #1 masih `0` (biaya awal belum ada di konfigurasi; akan terisi saat M4-A). Aturan "maks 2 program" & "1 kelas per program" belum terpakai karena endpoint belum bisa menambah enrollment kedua (menyusul saat fitur multi-program).
+
 ### M2
 - Status: ✅ selesai (1 Nov 2026)
 - **Backend** (`/api/programs`, `/api/classes`, `/api/teachers`): CRUD lengkap, semua dilindungi `verifyToken` + `requireRole(["ADMIN_CABANG"])`
@@ -99,7 +118,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- M3-A: Backend PSB (input peserta, NoID, assign kelas, upload foto/KTP ke /uploads)
+- M3-B: Frontend PSB (tabel peserta + filter, form multi-step, halaman detail peserta)
 
 ## Catatan Pindah IDE
 <!-- Catat jika ada hal khusus yang perlu diketahui IDE baru -->

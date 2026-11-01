@@ -124,6 +124,57 @@ async function main() {
     }
   }
   console.log(`[seed] kelas: ${classSeeds.length} baris (demo)`);
+
+  // 4. Peserta demo (M3) — beragam status untuk uji filter
+  const classIdByName: Record<string, number> = {};
+  for (const c of classSeeds) {
+    const row = await prisma.class.findFirst({ where: { branchId: branch.id, name: c.name } });
+    if (row) classIdByName[c.name] = row.id;
+  }
+
+  const studentSeeds = [
+    { name: "Muhammad Rizky", wa: "6281234567890", kelas: "Kelas Tahsin A", program: "Tahsin", status: "active" as const },
+    { name: "Aisyah Putri", wa: "6281234567891", kelas: "Kelas Tartil A", program: "Tartil", status: "active" as const },
+    { name: "Abdurrahman Hakim", wa: "6281234567892", kelas: "Kelas Talaqqi A", program: "Talaqqi", status: "active" as const },
+    { name: "Fatimah Az-Zahra", wa: "6281234567893", kelas: "Kelas Tahsin A", program: "Tahsin", status: "active" as const },
+    { name: "Yusuf Al-Amin", wa: "6281234567894", kelas: "Kelas Tartil A", program: "Tartil", status: "active" as const },
+    { name: "Khadijah Nur", wa: "6281234567895", kelas: "Kelas Tahsin B", program: "Tahsin", status: "cuti" as const },
+    { name: "Ibrahim Sulaiman", wa: "6281234567896", kelas: "Kelas Tartil B", program: "Tartil", status: "active" as const },
+    { name: "Ruqayyah Hanin", wa: "6281234567897", kelas: "Kelas Tahsin B", program: "Tahsin", status: "inactive" as const },
+  ];
+
+  let seq = 0;
+  for (const s of studentSeeds) {
+    seq += 1;
+    const noid = `LTQ-${branch.code}-${new Date().getFullYear()}-${String(seq).padStart(3, "0")}`;
+    const existing = await prisma.student.findUnique({ where: { noid } });
+    if (existing) continue;
+
+    const student = await prisma.student.create({
+      data: {
+        branchId: branch.id,
+        noid,
+        name: s.name,
+        whatsapp: s.wa,
+        gender: seq % 2 === 0 ? "P" : "L",
+        status: s.status,
+        ...(s.status === "cuti"
+          ? { cutiStart: new Date("2026-11-10"), cutiEnd: new Date("2026-11-20"), cutiReason: "Sakit" }
+          : {}),
+        ...(s.status === "inactive" ? { deletedAt: new Date() } : {}),
+      },
+    });
+
+    await prisma.enrollment.create({
+      data: {
+        studentId: student.id,
+        classId: classIdByName[s.kelas],
+        programId: programs[s.program],
+        status: s.status === "inactive" ? "dropped" : "active",
+      },
+    });
+  }
+  console.log(`[seed] peserta: ${studentSeeds.length} baris (demo)`);
 }
 
 main()

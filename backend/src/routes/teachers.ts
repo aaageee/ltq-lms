@@ -5,7 +5,7 @@ import { prisma } from "../lib/prisma";
 import { verifyToken } from "../middleware/verifyToken";
 import { requireRole } from "../middleware/requireRole";
 import { asyncHandler } from "../utils/asyncHandler";
-import { sanitizeWhatsapp, isValidWhatsapp } from "../utils/whatsapp";
+import { sanitizeWA, isValidWA } from "../utils/sanitizeWA";
 
 const router = Router();
 
@@ -83,8 +83,8 @@ router.post(
     }
     const d = parsed.data;
 
-    const whatsapp = sanitizeWhatsapp(d.whatsapp);
-    if (!isValidWhatsapp(whatsapp)) {
+    const whatsapp = sanitizeWA(d.whatsapp);
+    if (!isValidWA(whatsapp)) {
       res.status(400).json({ message: "Nomor WhatsApp tidak valid (contoh: 081234567890)." });
       return;
     }
@@ -157,8 +157,8 @@ router.put(
 
     let whatsapp: string | undefined;
     if (d.whatsapp !== undefined) {
-      whatsapp = sanitizeWhatsapp(d.whatsapp);
-      if (!isValidWhatsapp(whatsapp)) {
+      whatsapp = sanitizeWA(d.whatsapp);
+      if (!isValidWA(whatsapp)) {
         res.status(400).json({ message: "Nomor WhatsApp tidak valid (contoh: 081234567890)." });
         return;
       }
