@@ -1,12 +1,12 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/prisma";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt";
 import { verifyToken } from "../middleware/verifyToken";
+import { asyncHandler } from "../utils/asyncHandler";
 
 const router = Router();
-const prisma = new PrismaClient();
 
 const REFRESH_COOKIE = "refresh_token";
 
@@ -28,7 +28,7 @@ function setRefreshCookie(res: Response, token: string): void {
 }
 
 // POST /api/auth/login → return accessToken + set refreshToken cookie
-router.post("/login", async (req: Request, res: Response) => {
+router.post("/login", asyncHandler(async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: "Validasi gagal", errors: parsed.error.flatten().fieldErrors });
@@ -75,10 +75,10 @@ router.post("/login", async (req: Request, res: Response) => {
       branchId: user.branchId,
     },
   });
-});
+}));
 
 // POST /api/auth/refresh → ambil refreshToken dari cookie → return accessToken baru
-router.post("/refresh", async (req: Request, res: Response) => {
+router.post("/refresh", asyncHandler(async (req: Request, res: Response) => {
   const token = req.cookies?.[REFRESH_COOKIE] as string | undefined;
   if (!token) {
     res.status(401).json({ message: "Refresh token tidak ditemukan. Silakan login ulang." });
@@ -106,7 +106,7 @@ router.post("/refresh", async (req: Request, res: Response) => {
   } catch {
     res.status(401).json({ message: "Refresh token tidak valid atau kedaluwarsa. Silakan login ulang." });
   }
-});
+}));
 
 // POST /api/auth/logout → clear cookie
 router.post("/logout", (_req: Request, res: Response) => {
@@ -115,7 +115,7 @@ router.post("/logout", (_req: Request, res: Response) => {
 });
 
 // GET /api/auth/me → info user dari token (dipakai frontend untuk hydrate state)
-router.get("/me", verifyToken, async (req: Request, res: Response) => {
+router.get("/me", verifyToken, asyncHandler(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.sub },
     select: { id: true, email: true, role: true, branchId: true, isActive: true },
@@ -125,6 +125,6 @@ router.get("/me", verifyToken, async (req: Request, res: Response) => {
     return;
   }
   res.json({ user });
-});
+}));
 
 export default router;

@@ -12,7 +12,7 @@ Branch   : development
 - [x] M0-B — Prisma schema + Docker Compose (postgres/backend/frontend saja)
 - [x] M1-A — Backend auth (login, JWT, middleware RBAC, seeder 5 akun)
 - [x] M1-B — Frontend login + shortcut dev + dashboard dummy semua role
-- [ ] M2   — Admin: CRUD program, kelas, guru
+- [x] M2   — Admin: CRUD program, kelas, guru
 - [ ] M3-A — Backend PSB: input peserta, NoID, assign kelas, upload ke /uploads
 - [ ] M3-B — Frontend PSB: form multi-step + halaman detail peserta
 - [ ] M4-A — Backend SPP: invoice, konfirmasi bayar (TU|BENDAHARA), kwitansi PDF
@@ -30,6 +30,21 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M2
+- Status: ✅ selesai (1 Nov 2026)
+- **Backend** (`/api/programs`, `/api/classes`, `/api/teachers`): CRUD lengkap, semua dilindungi `verifyToken` + `requireRole(["ADMIN_CABANG"])`
+  - Program: list semua (aktif+nonaktif) + `_count.classes`; POST/PUT; DELETE = soft delete (`isActive=false`)
+  - Kelas: list + program + guru + jumlah peserta aktif; POST/PUT (assign/ganti guru); DELETE soft delete; validasi program & guru milik cabang
+  - Guru: POST otomatis buat akun `User` role GURU (password `ltq@2026`, bcrypt 12) dalam 1 transaksi; DELETE menonaktifkan akun + set `deletedAt`
+  - Sanitasi WA (`0812…`/`812…`/`+62…` → `62…`) di `utils/whatsapp.ts` — dipakai ulang di M3
+  - Validasi Zod + `asyncHandler` + error handler global di `index.ts`
+- **Frontend**: halaman `/dashboard/admin/{program,kelas,guru}` — tabel, modal tambah/edit, dialog konfirmasi, toast (sonner), badge kuota (hijau sisa / merah penuh), badge "Belum ada guru"
+- TanStack Query: `usePrograms/useClasses/useTeachers` + mutation hooks, invalidasi cache otomatis
+- **Mode preview tetap hidup**: `lib/api.ts` + `lib/mock-db.ts` — jika `NEXT_PUBLIC_DEV_MODE=true` semua CRUD jalan di memori (GitHub Pages), data reset saat reload; jika `false` hit API asli
+- Seeder diperluas: 3 program (Tahsin/Tartil/Talaqqi), 4 guru, 6 kelas demo (termasuk 1 kelas tanpa guru)
+- ✅ Verifikasi: 12 skenario curl backend lolos; UI CRUD diuji di mock; CRUD nyata diuji ke PostgreSQL (program "Bahasa Arab" tersimpan)
+- Catatan kecil: di mode API asli, nama user di topbar = prefix email (belum ada data nama profil / endpoint profil)
+
 ### M1-B
 - Status: ✅ selesai (1 Nov 2026)
 - **UI terlihat & terverifikasi di browser** — semua route lolos lint + build + 0 console error:
@@ -84,7 +99,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- M2: Admin CRUD program, kelas, guru (backend + frontend, TanStack Query + toast)
+- M3-A: Backend PSB (input peserta, NoID, assign kelas, upload foto/KTP ke /uploads)
 
 ## Catatan Pindah IDE
 <!-- Catat jika ada hal khusus yang perlu diketahui IDE baru -->

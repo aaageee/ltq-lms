@@ -1,8 +1,11 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
+import programRoutes from "./routes/programs";
+import classRoutes from "./routes/classes";
+import teacherRoutes from "./routes/teachers";
 
 dotenv.config();
 
@@ -20,8 +23,20 @@ app.use(cookieParser());
 
 // routes
 app.use("/api/auth", authRoutes);
+app.use("/api/programs", programRoutes);
+app.use("/api/classes", classRoutes);
+app.use("/api/teachers", teacherRoutes);
 
-// M1-A: route lain menyusul di modul berikutnya (M2: programs/classes/teachers)
+// 404 untuk endpoint tak dikenal
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ message: "Endpoint tidak ditemukan." });
+});
+
+// error handler terakhir
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("[backend] error:", err);
+  res.status(500).json({ message: "Terjadi kesalahan pada server." });
+});
 
 const PORT = Number(process.env.BACKEND_PORT ?? 4000);
 

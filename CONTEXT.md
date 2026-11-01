@@ -54,3 +54,5 @@ Sanitasi nomor WA wajib: `08xx` / `8xx` / `+62xx` → `62xx`
 - Password       : min 8 karakter + angka (NFR) — akun default wajib diganti sebelum deploy
 - UI components  : gaya shadcn **tanpa CLI shadcn** — komponen manual di `frontend/src/components/ui/` (jangan install radix/shadcn CLI tanpa keputusan eksplisit)
 - Dev mode login : `NEXT_PUBLIC_DEV_MODE=true` → login dummy (tanpa API); `false` → hit `POST /api/auth/login`
+- Mode data      : `true` → semua CRUD pakai mock in-memory (`lib/mock-db.ts`, reset saat reload); `false` → API asli
+- Toast          : `sonner` (`toast.success/error`) — provider di `src/app/providers.tsx`
