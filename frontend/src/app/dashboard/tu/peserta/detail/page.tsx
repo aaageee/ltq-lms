@@ -103,9 +103,8 @@ function useIdFromQuery(): number {
   return id;
 }
 
-function DetailContent() {
-  const id = useIdFromQuery();
-  const { data, isLoading } = useStudent(id > 0 ? id : null);
+function DetailContent({ id }: { id: number }) {
+  const { data, isLoading } = useStudent(id);
   const updateStudent = useUpdateStudent();
   const deactivateStudent = useDeactivateStudent();
   const cutiStudent = useCutiStudent();
@@ -143,7 +142,7 @@ function DetailContent() {
     setEditOpen(true);
   }
 
-  if (isLoading || id === -1) {
+  if (isLoading) {
     return (
       <RoleDashboard role="TU">
         <div className="space-y-4">
@@ -538,5 +537,16 @@ function EmptyTab({ icon: Icon, text }: { icon: typeof Wallet; text: string }) {
 }
 
 export default function PesertaDetailPage() {
-  return <DetailContent />;
+  const id = useIdFromQuery();
+  if (id === -1) {
+    return (
+      <RoleDashboard role="TU">
+        <div className="space-y-4">
+          <Skeleton className="h-28 w-full" />
+          <SkeletonTable rows={5} />
+        </div>
+      </RoleDashboard>
+    );
+  }
+  return <DetailContent id={id} />;
 }

@@ -64,7 +64,7 @@ async function main() {
   console.log(`[seed] program: ${Object.keys(programs).join(", ")}`);
 
   const teacherSeeds = [
-    { name: "Ust. Abdul Karim", whatsapp: "6281234567890", specialization: "Tahsin", email: "abdul.karim@ltq.id" },
+    { name: "Ust. Abdul Karim", whatsapp: "6281234567890", specialization: "Tahsin", email: "guru@ltq.id" },
     { name: "Ust. Ibrahim", whatsapp: "6281298765432", specialization: "Tartil", email: "ibrahim@ltq.id" },
     { name: "Ust. Hamzah", whatsapp: "6281355566677", specialization: "Talaqqi", email: "hamzah@ltq.id" },
     { name: "Ustazah Aisyah", whatsapp: "6285711122233", specialization: "Tahsin & Tartil", email: "aisyah@ltq.id" },
@@ -98,9 +98,9 @@ async function main() {
   console.log(`[seed] guru: ${Object.keys(teachers).join(", ")}`);
 
   const classSeeds = [
-    { name: "Kelas Tahsin A", program: "Tahsin", teacher: "Ust. Abdul Karim", days: "Senin,Rabu", time: "09:00-10:00", room: "Ruang 1" },
+    { name: "Kelas Tahsin A", program: "Tahsin", teacher: "Ust. Abdul Karim", days: "Senin,Rabu,Minggu", time: "09:00-10:00", room: "Ruang 1" },
     { name: "Kelas Tahsin B", program: "Tahsin", teacher: "Ust. Abdul Karim", days: "Selasa,Kamis", time: "14:00-15:00", room: "Ruang 2" },
-    { name: "Kelas Tartil A", program: "Tartil", teacher: "Ust. Ibrahim", days: "Senin,Kamis", time: "10:00-11:00", room: "Ruang 3" },
+    { name: "Kelas Tartil A", program: "Tartil", teacher: "Ust. Ibrahim", days: "Senin,Kamis,Minggu", time: "10:00-11:00", room: "Ruang 3" },
     { name: "Kelas Tartil B", program: "Tartil", teacher: "Ust. Ibrahim", days: "Selasa,Jumat", time: "14:00-15:00", room: "Ruang 3" },
     { name: "Kelas Talaqqi A", program: "Talaqqi", teacher: "Ust. Hamzah", days: "Rabu", time: "13:00-14:30", room: "Ruang 4" },
     { name: "Kelas Tahsin C", program: "Tahsin", teacher: null, days: "Sabtu", time: "08:00-09:00", room: "Ruang 1" },

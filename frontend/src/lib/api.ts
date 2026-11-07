@@ -30,6 +30,7 @@ export async function apiFetch<T>(
   options: { method?: string; body?: unknown } = {}
 ): Promise<T> {
   const method = (options.method ?? "GET").toUpperCase();
+  console.log("[api]", method, path, "dev:", DEV_MODE);
   const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
 
   if (DEV_MODE) {

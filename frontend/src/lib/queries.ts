@@ -6,6 +6,7 @@ import { apiFetch } from "./api";
 import type { ClassRow, Program, Teacher } from "./types-m2";
 import type { StudentDetail, StudentRow } from "./types-m3";
 import type { InvoiceRow } from "./types-m4";
+import type { CutiRow, JadwalKelas, KelasSiswaResponse, RekapResponse } from "./types-m5";
 
 // ── PROGRAMS ──
 export function usePrograms() {
@@ -184,10 +185,9 @@ export function useStudents(filters: { status?: string; programId?: string; sear
   });
 }
 
-export function useStudent(id: number | null) {
+export function useStudent(id: number) {
   return useQuery({
     queryKey: ["student", id],
-    enabled: !!id,
     queryFn: () => apiFetch<{ student: StudentDetail }>(`/students/${id}`),
   });
 }
@@ -362,6 +362,86 @@ export function useSendReminder() {
     mutationFn: (id: number) =>
       apiFetch<{ message: string; preview: string }>(`/invoices/${id}/kirim-reminder`, { method: "POST" }),
     onSuccess: (data) => toast.success(data.message),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── GURU / KBM (M5) ──
+export function useJadwalHariIni() {
+  return useQuery({
+    queryKey: ["guru", "jadwal-hari-ini"],
+    queryFn: () => apiFetch<{ hari: string; kelas: JadwalKelas[] }>("/guru/jadwal-hari-ini"),
+  });
+}
+
+export function useKelasGuru() {
+  return useQuery({
+    queryKey: ["guru", "kelas"],
+    queryFn: () => apiFetch<{ classes: Omit<JadwalKelas, "hasSession">[] }>("/guru/kelas"),
+  });
+}
+
+export function useKelasSiswa(classId: number) {
+  return useQuery({
+    queryKey: ["guru", "kelas-siswa", classId],
+    queryFn: () => apiFetch<KelasSiswaResponse>(`/guru/kelas/${classId}/siswa`),
+  });
+}
+
+export function useRekapPresensi(classId: number, month: string) {
+  return useQuery({
+    queryKey: ["guru", "rekap", classId, month],
+    queryFn: () => apiFetch<RekapResponse>(`/guru/rekap-presensi/${classId}?month=${month}`),
+  });
+}
+
+export interface SesiPayload {
+  classId: number;
+  teacherStatus: "hadir" | "badal";
+  badalTeacherId?: number | null;
+  siswaPresensi: { studentId: number; status: string; score?: number | null; notes?: string | null }[];
+}
+
+export function useSimpanSesi() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: SesiPayload) =>
+      apiFetch<{ message: string; attendances: number; grades: number }>("/attendances/sesi", {
+        method: "POST",
+        body,
+      }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["guru"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useGuruLain() {
+  return useQuery({
+    queryKey: ["guru", "guru-lain"],
+    queryFn: () => apiFetch<{ teachers: { id: number; name: string }[] }>("/guru/guru-lain"),
+  });
+}
+
+export function useCutiList() {
+  return useQuery({
+    queryKey: ["guru", "cuti"],
+    queryFn: () => apiFetch<{ leaves: CutiRow[] }>("/guru/cuti"),
+  });
+}
+
+export function useAjukanCuti() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { start: string; end: string; reason?: string; badalTeacherId?: number | null }) =>
+      apiFetch<{ message: string }>("/guru/cuti", { method: "POST", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["guru", "cuti"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }

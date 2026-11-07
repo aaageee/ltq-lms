@@ -18,7 +18,7 @@ Branch   : development
 - [x] M4-A — Backend SPP: invoice, konfirmasi bayar (TU|BENDAHARA), kwitansi PDF
 - [x] M4-B — Frontend SPP: buat invoice, konfirmasi, download kwitansi
 - [x] M4-C — Integrasi Fonnte WA (template persis PRD §15, trigger #1–#3, #5) — ⏸️ token Fonnte belum ada
-- [ ] M5   — Guru: presensi + nilai (1 transaksi) + cuti badal
+- [x] M5   — Guru: presensi + nilai (1 transaksi) + cuti badal
 - [ ] M6   — Guru: raport PDF + kenaikan level + approval admin + WA #5
 - [ ] M7-A — Backend bendahara: kas (SPP derive dari payments), penggajian, export
 - [ ] M7-B — Frontend bendahara: dashboard kas + penggajian
@@ -30,6 +30,15 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M5
+- Status: ✅ selesai (8 Nov 2026)
+- Backend `/api/guru` (GURU): jadwal-hari-ini (cocokkan `scheduleDays` dengan hari), daftar kelas, siswa per kelas + status presensi hari ini, rekap presensi bulanan, pengajuan cuti + daftar cuti, daftar guru lain (badal)
+- `POST /api/attendances/sesi`: presensi + nilai **satu transaksi**; validasi 1 kelas 1 sesi/hari, ownership (guru kelas atau badal yang ditugaskan), nilai <60 wajib catatan, siswa harus terdaftar aktif
+- Frontend: dashboard guru (jadwal real + tombol Mulai Sesi/Sesi Selesai), halaman presensi (`?class=`), rekap matriks bulanan, form cuti + riwayat
+- ✅ Uji: 10 skenario curl backend + browser (simpan sesi → "sudah diisi", rekap tampil, cuti tersimpan)
+- ⚠️ Perbaikan penting: query dengan flag `enabled` yang berubah setelah mount membuat fetch menggantung di React 19 + TanStack Query v5 — dihapus; komponen sekarang mount dengan id yang sudah pasti
+- Seeder: `guru@ltq.id` sekarang punya profil guru (Ust. Abdul Karim); 2 kelas dijadwalkan hari Minggu untuk demo
+
 ### M3-B
 - Status: ✅ selesai (8 Nov 2026)
 - Halaman `/dashboard/tu/peserta`: tabel peserta + filter status/program + pencarian (debounce), badge status
@@ -153,7 +162,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- M5: Guru presensi & nilai harian (jadwal, presensi+nilai 1 transaksi, rekap, cuti badal)
+- M6: Raport PDF + kenaikan level + approval admin + WA #5
 
 ## Catatan Pindah IDE
 <!-- Catat jika ada hal khusus yang perlu diketahui IDE baru -->

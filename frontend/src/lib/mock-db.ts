@@ -20,14 +20,17 @@ interface MockState {
   classes: ClassRow[];
   students: StudentDetail[];
   invoices: InvoiceRow[];
+  attendances: { id: number; classId: number; studentId: number; sessionDate: string; studentStatus: string; teacherStatus: string }[];
+  leaves: { id: number; teacherId: number; dateStart: string; dateEnd: string; reason: string | null; badalTeacherId: number | null; status: string; createdAt: string }[];
   nextProgramId: number;
   nextTeacherId: number;
   nextClassId: number;
   nextStudentId: number;
   nextEnrollmentId: number;
-  nextAttendanceId: number;
   nextGradeId: number;
   nextInvoiceId: number;
+  nextAttendanceId: number;
+  nextLeaveId: number;
 }
 
 function seedBase() {
@@ -45,9 +48,9 @@ function seedBase() {
   ];
 
   const classes: ClassRow[] = [
-    { id: 1, name: "Kelas Tahsin A", programId: 1, program: { id: 1, name: "Tahsin" }, teacherId: 1, teacher: { id: 1, name: "Ust. Abdul Karim" }, capacity: 15, filled: 12, scheduleDays: "Senin,Rabu", scheduleTime: "09:00-10:00", room: "Ruang 1", isActive: true },
+    { id: 1, name: "Kelas Tahsin A", programId: 1, program: { id: 1, name: "Tahsin" }, teacherId: 1, teacher: { id: 1, name: "Ust. Abdul Karim" }, capacity: 15, filled: 12, scheduleDays: "Senin,Rabu,Minggu", scheduleTime: "09:00-10:00", room: "Ruang 1", isActive: true },
     { id: 2, name: "Kelas Tahsin B", programId: 1, program: { id: 1, name: "Tahsin" }, teacherId: 1, teacher: { id: 1, name: "Ust. Abdul Karim" }, capacity: 16, filled: 16, scheduleDays: "Selasa,Kamis", scheduleTime: "14:00-15:00", room: "Ruang 2", isActive: true },
-    { id: 3, name: "Kelas Tartil A", programId: 2, program: { id: 2, name: "Tartil" }, teacherId: 2, teacher: { id: 2, name: "Ust. Ibrahim" }, capacity: 12, filled: 8, scheduleDays: "Senin,Kamis", scheduleTime: "10:00-11:00", room: "Ruang 3", isActive: true },
+    { id: 3, name: "Kelas Tartil A", programId: 2, program: { id: 2, name: "Tartil" }, teacherId: 2, teacher: { id: 2, name: "Ust. Ibrahim" }, capacity: 12, filled: 8, scheduleDays: "Senin,Kamis,Minggu", scheduleTime: "10:00-11:00", room: "Ruang 3", isActive: true },
     { id: 4, name: "Kelas Tartil B", programId: 2, program: { id: 2, name: "Tartil" }, teacherId: 2, teacher: { id: 2, name: "Ust. Ibrahim" }, capacity: 12, filled: 10, scheduleDays: "Selasa,Jumat", scheduleTime: "14:00-15:00", room: "Ruang 3", isActive: true },
     { id: 5, name: "Kelas Talaqqi A", programId: 3, program: { id: 3, name: "Talaqqi" }, teacherId: 3, teacher: { id: 3, name: "Ust. Hamzah" }, capacity: 10, filled: 6, scheduleDays: "Rabu", scheduleTime: "13:00-14:30", room: "Ruang 4", isActive: true },
     { id: 6, name: "Kelas Tahsin C", programId: 1, program: { id: 1, name: "Tahsin" }, teacherId: null, teacher: null, capacity: 15, filled: 0, scheduleDays: "Sabtu", scheduleTime: "08:00-09:00", room: "Ruang 1", isActive: true },
@@ -200,20 +203,33 @@ function seed(): MockState {
     },
   ];
 
+  const attendances = [
+    { id: 1, classId: 1, studentId: 1, sessionDate: "2026-11-01T09:00:00.000Z", studentStatus: "hadir", teacherStatus: "hadir" },
+    { id: 2, classId: 1, studentId: 4, sessionDate: "2026-11-01T09:00:00.000Z", studentStatus: "hadir", teacherStatus: "hadir" },
+    { id: 3, classId: 1, studentId: 1, sessionDate: "2026-11-03T09:00:00.000Z", studentStatus: "hadir", teacherStatus: "hadir" },
+    { id: 4, classId: 1, studentId: 4, sessionDate: "2026-11-03T09:00:00.000Z", studentStatus: "izin", teacherStatus: "hadir" },
+    { id: 5, classId: 1, studentId: 1, sessionDate: "2026-11-05T09:00:00.000Z", studentStatus: "hadir", teacherStatus: "hadir" },
+    { id: 6, classId: 1, studentId: 4, sessionDate: "2026-11-05T09:00:00.000Z", studentStatus: "absen", teacherStatus: "hadir" },
+  ];
+  const leaves: MockState["leaves"] = [];
+
   return {
     programs,
     teachers,
     classes,
     students,
     invoices,
+    attendances,
+    leaves,
     nextProgramId: 4,
     nextTeacherId: 5,
     nextClassId: 7,
     nextStudentId: 9,
     nextEnrollmentId: 2000,
-    nextAttendanceId: 5,
     nextGradeId: 4,
     nextInvoiceId: 6,
+    nextAttendanceId: 7,
+    nextLeaveId: 1,
   };
 }
 
@@ -268,7 +284,8 @@ function generateNoID(): string {
 
 // Router mock: meniru endpoint backend
 export async function mockRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
-  await new Promise((resolve) => setTimeout(resolve, 250)); // simulasi latensi jaringan
+  console.log("[mock] hit", method, path);
+  // tanpa delay: hindari timer throttling di tab background (dev/preview)
 
   const m = method.toUpperCase();
   const [rawPath, queryString] = path.split("?");
@@ -677,6 +694,135 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
     if (m === "GET" && id && action === "kwitansi") {
       throw new MockApiError("Kwitansi PDF hanya tersedia saat terhubung ke backend.", 501);
     }
+  }
+
+  // ── GURU (M5) ──
+  if (resource === "guru") {
+    const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const today = dayNames[new Date().getDay()];
+    const todayKey = new Date().toISOString().slice(0, 10);
+
+    if (m === "GET" && idPart === "jadwal-hari-ini") {
+      const kelas = state.classes
+        .filter((c) => c.teacherId === 1 && c.isActive)
+        .filter((c) => c.scheduleDays.split(",").map((d) => d.trim().toLowerCase()).includes(today.toLowerCase()))
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          program: c.program.name,
+          scheduleDays: c.scheduleDays,
+          scheduleTime: c.scheduleTime,
+          room: c.room,
+          students: state.students.filter((st) => st.enrollments.some((e) => e.class.id === c.id && e.status === "active")).length,
+          hasSession: state.attendances.some((a) => a.classId === c.id && a.sessionDate.slice(0, 10) === todayKey),
+        }));
+      return { hari: today, kelas } as T;
+    }
+
+    if (m === "GET" && idPart === "kelas" && !action) {
+      return {
+        classes: state.classes
+          .filter((c) => c.teacherId === 1 && c.isActive)
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            program: c.program.name,
+            scheduleDays: c.scheduleDays,
+            scheduleTime: c.scheduleTime,
+            room: c.room,
+            students: state.students.filter((st) => st.enrollments.some((e) => e.class.id === c.id && e.status === "active")).length,
+          })),
+      } as T;
+    }
+
+    if (m === "GET" && idPart === "guru-lain") {
+      return { teachers: state.teachers.filter((t) => t.id !== 1 && t.isActive).map((t) => ({ id: t.id, name: t.name })) } as T;
+    }
+
+    if (m === "GET" && idPart === "cuti") {
+      return { leaves: state.leaves } as T;
+    }
+
+    if (m === "POST" && idPart === "cuti") {
+      const leave = {
+        id: state.nextLeaveId++,
+        teacherId: 1,
+        dateStart: String(payload.start ?? ""),
+        dateEnd: String(payload.end ?? ""),
+        reason: payload.reason ? String(payload.reason) : null,
+        badalTeacherId: payload.badalTeacherId ? Number(payload.badalTeacherId) : null,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      };
+      if (!leave.dateStart || !leave.dateEnd) throw new MockApiError("Tanggal cuti wajib diisi.");
+      state.leaves.unshift(leave);
+      return { leave, message: "Pengajuan cuti terkirim, menunggu persetujuan admin." } as T;
+    }
+
+    if (m === "GET" && idPart === "kelas" && rawPath.split("/")[4] === "siswa") {
+      const classId = Number(rawPath.split("/")[3]);
+      const cls = state.classes.find((c) => c.id === classId);
+      if (!cls) throw new MockApiError("Kelas tidak ditemukan.", 404);
+      const students = state.students
+        .filter((st) => st.enrollments.some((e) => e.class.id === classId && e.status === "active"))
+        .map((st) => {
+          const att = state.attendances.find((a) => a.classId === classId && a.studentId === st.id && a.sessionDate.slice(0, 10) === todayKey);
+          return { id: st.id, noid: st.noid, name: st.name, status: att?.studentStatus ?? null };
+        });
+      return {
+        class: { id: cls.id, name: cls.name, program: cls.program.name, scheduleDays: cls.scheduleDays, scheduleTime: cls.scheduleTime, room: cls.room },
+        sessionFilled: students.some((st) => st.status),
+        students,
+      } as T;
+    }
+
+    if (m === "GET" && idPart === "rekap-presensi") {
+      const classId = Number(rawPath.split("/")[3]);
+      const month = query.get("month") ?? "";
+      const cls = state.classes.find((c) => c.id === classId);
+      if (!cls) throw new MockApiError("Kelas tidak ditemukan.", 404);
+      const rows = state.attendances.filter((a) => a.classId === classId && a.sessionDate.slice(0, 7) === month);
+      const sessionDates = Array.from(new Set(rows.map((a) => a.sessionDate.slice(0, 10)))).sort();
+      const map = new Map<number, { id: number; noid: string; name: string; statuses: Record<string, string>; counts: { hadir: number; absen: number; izin: number; sakit: number } }>();
+      for (const a of rows) {
+        const st = state.students.find((x) => x.id === a.studentId);
+        if (!st) continue;
+        if (!map.has(st.id)) map.set(st.id, { id: st.id, noid: st.noid, name: st.name, statuses: {}, counts: { hadir: 0, absen: 0, izin: 0, sakit: 0 } });
+        const row = map.get(st.id)!;
+        row.statuses[a.sessionDate.slice(0, 10)] = a.studentStatus;
+        if (a.studentStatus in row.counts) row.counts[a.studentStatus as keyof typeof row.counts] += 1;
+      }
+      return { class: { id: cls.id, name: cls.name, program: cls.program.name }, month, sessionDates, students: Array.from(map.values()) } as T;
+    }
+  }
+
+  if (resource === "attendances" && idPart === "sesi" && m === "POST") {
+    const classId = Number(payload.classId ?? payload.class_id);
+    const sessionDate = String(payload.sessionDate ?? new Date().toISOString());
+    const key = sessionDate.slice(0, 10);
+    if (state.attendances.some((a) => a.classId === classId && a.sessionDate.slice(0, 10) === key)) {
+      throw new MockApiError("Presensi kelas ini untuk tanggal tersebut sudah diisi.", 409);
+    }
+    const list = (payload.siswaPresensi ?? payload.siswa_presensi ?? []) as { studentId?: number; student_id?: number; status: string; score?: number | null; notes?: string | null }[];
+    for (const s of list) {
+      if (s.score !== null && s.score !== undefined && Number(s.score) < 60 && !s.notes?.trim()) {
+        throw new MockApiError("Nilai di bawah 60 wajib disertai catatan guru.");
+      }
+    }
+    let grades = 0;
+    for (const s of list) {
+      const sid = Number(s.studentId ?? s.student_id);
+      state.attendances.push({
+        id: state.nextAttendanceId++,
+        classId,
+        studentId: sid,
+        sessionDate: new Date(sessionDate).toISOString(),
+        studentStatus: s.status,
+        teacherStatus: String(payload.teacherStatus ?? payload.teacher_status ?? "hadir"),
+      });
+      if (s.score !== null && s.score !== undefined) grades += 1;
+    }
+    return { message: `Sesi tersimpan: ${list.length} presensi, ${grades} nilai.`, attendances: list.length, grades, sessionDate } as T;
   }
 
   throw new MockApiError(`Endpoint mock tidak dikenal: ${m} ${path}`, 404);

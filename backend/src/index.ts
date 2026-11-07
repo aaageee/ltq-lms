@@ -8,6 +8,8 @@ import classRoutes from "./routes/classes";
 import teacherRoutes from "./routes/teachers";
 import studentRoutes from "./routes/students";
 import invoiceRoutes from "./routes/invoices";
+import guruRoutes from "./routes/guru";
+import attendanceRoutes from "./routes/attendances";
 
 dotenv.config();
 
@@ -30,6 +32,8 @@ app.use("/api/classes", classRoutes);
 app.use("/api/teachers", teacherRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/invoices", invoiceRoutes);
+app.use("/api/guru", guruRoutes);
+app.use("/api/attendances", attendanceRoutes);
 
 // 404 untuk endpoint tak dikenal
 app.use((_req: Request, res: Response) => {
