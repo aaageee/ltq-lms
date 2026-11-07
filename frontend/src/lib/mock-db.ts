@@ -3,6 +3,7 @@
 // Data kembali ke seed saat halaman di-reload.
 
 import type { ClassRow, Program, Teacher } from "./types-m2";
+import type { StudentDetail, StudentRow, StudentStatus } from "./types-m3";
 
 export class MockApiError extends Error {
   status: number;
@@ -16,12 +17,18 @@ interface MockState {
   programs: Program[];
   teachers: Teacher[];
   classes: ClassRow[];
+  students: StudentDetail[];
   nextProgramId: number;
   nextTeacherId: number;
   nextClassId: number;
+  nextStudentId: number;
+  nextEnrollmentId: number;
+  nextInvoiceId: number;
+  nextAttendanceId: number;
+  nextGradeId: number;
 }
 
-function seed(): MockState {
+function seedBase() {
   const programs: Program[] = [
     { id: 1, name: "Tahsin", isActive: true },
     { id: 2, name: "Tartil", isActive: true },
@@ -44,14 +51,124 @@ function seed(): MockState {
     { id: 6, name: "Kelas Tahsin C", programId: 1, program: { id: 1, name: "Tahsin" }, teacherId: null, teacher: null, capacity: 15, filled: 0, scheduleDays: "Sabtu", scheduleTime: "08:00-09:00", room: "Ruang 1", isActive: true },
   ];
 
-  // isi kelas yang diajar per guru
   for (const t of teachers) {
     t.classes = classes
       .filter((c) => c.teacherId === t.id && c.isActive)
       .map((c) => ({ id: c.id, name: c.name }));
   }
 
-  return { programs, teachers, classes, nextProgramId: 4, nextTeacherId: 5, nextClassId: 7 };
+  return { programs, teachers, classes };
+}
+
+function enrollmentFor(studentId: number, classRow: ClassRow, status = "active") {
+  return {
+    id: 1000 + studentId,
+    status,
+    program: { id: classRow.program.id, name: classRow.program.name },
+    class: {
+      id: classRow.id,
+      name: classRow.name,
+      scheduleDays: classRow.scheduleDays,
+      scheduleTime: classRow.scheduleTime,
+      teacher: classRow.teacher,
+    },
+  };
+}
+
+function seedStudents(classes: ClassRow[]): StudentDetail[] {
+  const base = [
+    { name: "Muhammad Rizky", wa: "6281234567890", classId: 1, status: "active" as StudentStatus, gender: "L" as const },
+    { name: "Aisyah Putri", wa: "6281234567891", classId: 3, status: "active" as StudentStatus, gender: "P" as const },
+    { name: "Abdurrahman Hakim", wa: "6281234567892", classId: 5, status: "active" as StudentStatus, gender: "L" as const },
+    { name: "Fatimah Az-Zahra", wa: "6281234567893", classId: 1, status: "active" as StudentStatus, gender: "P" as const },
+    { name: "Yusuf Al-Amin", wa: "6281234567894", classId: 3, status: "active" as StudentStatus, gender: "L" as const },
+    { name: "Khadijah Nur", wa: "6281234567895", classId: 2, status: "cuti" as StudentStatus, gender: "P" as const },
+    { name: "Ibrahim Sulaiman", wa: "6281234567896", classId: 4, status: "active" as StudentStatus, gender: "L" as const },
+    { name: "Ruqayyah Hanin", wa: "6281234567897", classId: 2, status: "inactive" as StudentStatus, gender: "P" as const },
+  ];
+
+  return base.map((s, i) => {
+    const id = i + 1;
+    const cls = classes.find((c) => c.id === s.classId)!;
+    return {
+      id,
+      noid: `LTQ-JKT-2026-${String(id).padStart(3, "0")}`,
+      name: s.name,
+      whatsapp: s.wa,
+      dob: i % 2 === 0 ? "2010-05-12" : null,
+      gender: s.gender,
+      address: i % 2 === 0 ? "Jl. Merdeka No. 1, Jakarta" : null,
+      photoUrl: null,
+      ktpUrl: null,
+      parentName: i % 2 === 0 ? `Bpk. ${s.name.split(" ")[0]} Sr.` : null,
+      parentPhone: i % 2 === 0 ? "6281298765432" : null,
+      status: s.status,
+      cutiStart: s.status === "cuti" ? "2026-11-10" : null,
+      cutiEnd: s.status === "cuti" ? "2026-11-20" : null,
+      cutiReason: s.status === "cuti" ? "Sakit" : null,
+      createdAt: "2026-10-0" + ((i % 9) + 1) + "T08:00:00.000Z",
+      enrollments: [enrollmentFor(id, cls, s.status === "inactive" ? "dropped" : "active")],
+      invoices: [],
+      attendances: [],
+      grades: [],
+    };
+  });
+}
+
+function seed(): MockState {
+  const { programs, teachers, classes } = seedBase();
+  const students = seedStudents(classes);
+
+  // data demo detail untuk peserta #1
+  const s1 = students[0];
+  s1.invoices = [
+    {
+      id: 1,
+      period: "2026-10",
+      components: [{ nama: "SPP", jumlah: 300000 }, { nama: "Kegiatan", jumlah: 50000 }],
+      totalAmount: 350000,
+      dueDate: "2026-10-07T00:00:00.000Z",
+      status: "paid",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      payments: [{ id: 1, amount: 350000, confirmedAt: "2026-10-05T09:00:00.000Z", createdAt: "2026-10-05T08:00:00.000Z" }],
+    },
+    {
+      id: 2,
+      period: "2026-11",
+      components: [{ nama: "SPP", jumlah: 300000 }],
+      totalAmount: 300000,
+      dueDate: "2026-11-07T00:00:00.000Z",
+      status: "unpaid",
+      createdAt: "2026-11-01T00:00:00.000Z",
+      payments: [],
+    },
+  ];
+  s1.attendances = [
+    { id: 1, sessionDate: "2026-11-02T09:00:00.000Z", studentStatus: "hadir", teacherStatus: "hadir", class: { name: "Kelas Tahsin A" } },
+    { id: 2, sessionDate: "2026-10-29T09:00:00.000Z", studentStatus: "hadir", teacherStatus: "hadir", class: { name: "Kelas Tahsin A" } },
+    { id: 3, sessionDate: "2026-10-27T09:00:00.000Z", studentStatus: "izin", teacherStatus: "hadir", class: { name: "Kelas Tahsin A" } },
+    { id: 4, sessionDate: "2026-10-22T09:00:00.000Z", studentStatus: "hadir", teacherStatus: "hadir", class: { name: "Kelas Tahsin A" } },
+  ];
+  s1.grades = [
+    { id: 1, gradeType: "harian", score: 88, notes: "Bacaan lancar", createdAt: "2026-10-29T10:00:00.000Z", class: { name: "Kelas Tahsin A" } },
+    { id: 2, gradeType: "ujian", score: 92, notes: "Tajwid baik", createdAt: "2026-10-25T10:00:00.000Z", class: { name: "Kelas Tahsin A" } },
+    { id: 3, gradeType: "harian", score: 75, notes: "Perlu latihan makhraj", createdAt: "2026-10-20T10:00:00.000Z", class: { name: "Kelas Tahsin A" } },
+  ];
+
+  return {
+    programs,
+    teachers,
+    classes,
+    students,
+    nextProgramId: 4,
+    nextTeacherId: 5,
+    nextClassId: 7,
+    nextStudentId: 9,
+    nextEnrollmentId: 2000,
+    nextInvoiceId: 3,
+    nextAttendanceId: 5,
+    nextGradeId: 4,
+  };
 }
 
 let state = seed();
@@ -71,14 +188,48 @@ function withClassCount(p: Program): Program {
   return { ...p, _count: { classes: state.classes.filter((c) => c.programId === p.id && c.isActive).length } };
 }
 
+function toStudentRow(s: StudentDetail): StudentRow {
+  const active = s.enrollments.filter((e) => e.status === "active");
+  const shown = active.length > 0 ? active : s.enrollments;
+  const first = shown[0];
+  return {
+    id: s.id,
+    noid: s.noid,
+    name: s.name,
+    whatsapp: s.whatsapp,
+    status: s.status,
+    photoUrl: s.photoUrl,
+    programs: shown.map((e) => e.program.name),
+    classes: shown.map((e) => e.class.name),
+    teachers: shown.map((e) => e.class.teacher?.name ?? null),
+    program: first?.program.name ?? null,
+    kelas: first?.class.name ?? null,
+    nama_guru: first?.class.teacher?.name ?? null,
+    createdAt: s.createdAt ?? new Date().toISOString(),
+  };
+}
+
+function generateNoID(): string {
+  const year = new Date().getFullYear();
+  const prefix = `LTQ-JKT-${year}-`;
+  const lastSeq = state.students.reduce((max, s) => {
+    if (!s.noid.startsWith(prefix)) return max;
+    const n = Number.parseInt(s.noid.slice(prefix.length), 10);
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 0);
+  return `${prefix}${String(lastSeq + 1).padStart(3, "0")}`;
+}
+
 // Router mock: meniru endpoint backend
 export async function mockRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
   await new Promise((resolve) => setTimeout(resolve, 250)); // simulasi latensi jaringan
 
   const m = method.toUpperCase();
-  const [, resource, idPart] = path.split("?")[0].split("/"); // ["", "programs", "1"]
+  const [rawPath, queryString] = path.split("?");
+  const [, resource, idPart, action] = rawPath.split("/");
   const id = idPart ? Number(idPart) : null;
   const payload = (body ?? {}) as Record<string, unknown>;
+  const query = new URLSearchParams(queryString ?? "");
 
   // ── PROGRAMS ──
   if (resource === "programs") {
@@ -157,7 +308,6 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
         const teacherId = payload.teacherId ? Number(payload.teacherId) : null;
         const teacher = teacherId ? state.teachers.find((t) => t.id === teacherId && t.isActive) : null;
         if (teacherId && !teacher) throw new MockApiError("Guru tidak ditemukan atau tidak aktif.");
-        // bersihkan relasi lama
         for (const t of state.teachers) t.classes = t.classes.filter((c) => c.id !== row.id);
         row.teacherId = teacher?.id ?? null;
         row.teacher = teacher ? { id: teacher.id, name: teacher.name } : null;
@@ -235,6 +385,151 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
         }
       }
       return { message: "Guru dinonaktifkan." } as T;
+    }
+  }
+
+  // ── STUDENTS (M3) ──
+  if (resource === "students") {
+    if (m === "GET" && !id) {
+      const status = query.get("status");
+      const programId = query.get("programId") ? Number(query.get("programId")) : null;
+      const classId = query.get("classId") ? Number(query.get("classId")) : null;
+      const search = (query.get("search") ?? "").toLowerCase().trim();
+
+      let rows = state.students.map(toStudentRow);
+      if (status) rows = rows.filter((r) => r.status === status);
+      if (programId) rows = rows.filter((r) => r.programs.includes(state.programs.find((p) => p.id === programId)?.name ?? "___"));
+      if (classId) rows = rows.filter((r) => r.classes.includes(state.classes.find((c) => c.id === classId)?.name ?? "___"));
+      if (search) {
+        rows = rows.filter(
+          (r) =>
+            r.name.toLowerCase().includes(search) ||
+            r.noid.toLowerCase().includes(search) ||
+            r.whatsapp.includes(search)
+        );
+      }
+      return { students: rows } as T;
+    }
+
+    if (m === "GET" && id && !action) {
+      const student = state.students.find((s) => s.id === id);
+      if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
+      return { student } as T;
+    }
+
+    if (m === "POST" && !id) {
+      const name = String(payload.name ?? payload.nama ?? "").trim();
+      const whatsapp = sanitizeWhatsapp(String(payload.whatsapp ?? ""));
+      const programId = Number(payload.programId ?? payload.program_id);
+      const classId = Number(payload.classId ?? payload.class_id);
+      if (name.length < 2) throw new MockApiError("Nama peserta minimal 2 karakter");
+      if (!/^62\d{8,13}$/.test(whatsapp)) throw new MockApiError("Nomor WhatsApp tidak valid (contoh: 081234567890).");
+
+      const cls = state.classes.find((c) => c.id === classId && c.isActive);
+      if (!cls) throw new MockApiError("Kelas tidak ditemukan atau nonaktif.", 404);
+      const program = state.programs.find((p) => p.id === programId && p.isActive);
+      if (!program) throw new MockApiError("Program tidak ditemukan atau nonaktif.");
+      if (cls.programId !== programId) throw new MockApiError("Kelas yang dipilih bukan bagian dari program tersebut.");
+      if (!cls.teacherId) throw new MockApiError("Kelas belum memiliki guru.");
+
+      const filled = cls.filled;
+      const sisa = cls.capacity - filled;
+      if (sisa <= 0) {
+        throw new MockApiError("Kelas sudah penuh. Silakan pilih kelas lain.");
+      }
+
+      const noid = generateNoID();
+      const student: StudentDetail = {
+        id: state.nextStudentId++,
+        noid,
+        name,
+        whatsapp,
+        dob: payload.dob ? String(payload.dob) : null,
+        gender: payload.gender === "L" || payload.gender === "P" ? payload.gender : null,
+        address: payload.address ? String(payload.address) : null,
+        photoUrl: null,
+        ktpUrl: null,
+        parentName: payload.parentName ? String(payload.parentName) : null,
+        parentPhone: payload.parentPhone ? sanitizeWhatsapp(String(payload.parentPhone)) : null,
+        status: "active",
+        cutiStart: null,
+        cutiEnd: null,
+        cutiReason: null,
+        createdAt: new Date().toISOString(),
+        enrollments: [
+          {
+            id: state.nextEnrollmentId++,
+            status: "active",
+            program: { id: cls.program.id, name: cls.program.name },
+            class: {
+              id: cls.id,
+              name: cls.name,
+              scheduleDays: cls.scheduleDays,
+              scheduleTime: cls.scheduleTime,
+              teacher: cls.teacher,
+            },
+          },
+        ],
+        invoices: [],
+        attendances: [],
+        grades: [],
+      };
+      state.students.push(student);
+      cls.filled += 1;
+
+      return {
+        student,
+        enrollment: student.enrollments[0],
+        noid,
+        sisaKuota: sisa - 1,
+        message: `Peserta berhasil didaftarkan dengan NoID ${noid}.`,
+      } as T;
+    }
+
+    if (m === "PUT" && id && !action) {
+      const student = state.students.find((s) => s.id === id);
+      if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
+      if (payload.name !== undefined) student.name = String(payload.name).trim();
+      if (payload.whatsapp !== undefined) student.whatsapp = sanitizeWhatsapp(String(payload.whatsapp));
+      if (payload.dob !== undefined) student.dob = payload.dob ? String(payload.dob) : null;
+      if (payload.gender !== undefined) student.gender = payload.gender === "L" || payload.gender === "P" ? payload.gender : null;
+      if (payload.address !== undefined) student.address = payload.address ? String(payload.address) : null;
+      if (payload.parentName !== undefined) student.parentName = payload.parentName ? String(payload.parentName) : null;
+      if (payload.parentPhone !== undefined) {
+        student.parentPhone = payload.parentPhone ? sanitizeWhatsapp(String(payload.parentPhone)) : null;
+      }
+      return { student, message: "Biodata peserta diperbarui." } as T;
+    }
+
+    if (m === "POST" && id && action === "upload-foto") {
+      const student = state.students.find((s) => s.id === id);
+      if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
+      student.photoUrl = (payload.__uploadDataUrl as string) ?? null;
+      return { student, message: "Foto peserta berhasil diunggah." } as T;
+    }
+
+    if (m === "POST" && id && action === "upload-ktp") {
+      const student = state.students.find((s) => s.id === id);
+      if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
+      student.ktpUrl = (payload.__uploadDataUrl as string) ?? null;
+      return { student, message: "KTP peserta berhasil diunggah." } as T;
+    }
+
+    if (m === "POST" && id && action === "nonaktifkan") {
+      const student = state.students.find((s) => s.id === id);
+      if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
+      student.status = "inactive";
+      return { student, message: "Peserta dinonaktifkan." } as T;
+    }
+
+    if (m === "POST" && id && action === "cuti") {
+      const student = state.students.find((s) => s.id === id);
+      if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
+      student.status = "cuti";
+      student.cutiStart = payload.start ? String(payload.start) : null;
+      student.cutiEnd = payload.end ? String(payload.end) : null;
+      student.cutiReason = payload.reason ? String(payload.reason) : null;
+      return { student, message: "Peserta ditandai cuti." } as T;
     }
   }
 

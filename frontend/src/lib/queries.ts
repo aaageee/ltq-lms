@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch } from "./api";
 import type { ClassRow, Program, Teacher } from "./types-m2";
+import type { StudentDetail, StudentRow } from "./types-m3";
 
 // ── PROGRAMS ──
 export function usePrograms() {
@@ -164,6 +165,118 @@ export function useDeactivateTeacher() {
       toast.success(data.message);
       qc.invalidateQueries({ queryKey: ["teachers"] });
       qc.invalidateQueries({ queryKey: ["classes"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── STUDENTS (M3) ──
+export function useStudents(filters: { status?: string; programId?: string; search?: string }) {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.programId) params.set("programId", filters.programId);
+  if (filters.search) params.set("search", filters.search);
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ["students", filters],
+    queryFn: () => apiFetch<{ students: StudentRow[] }>(`/students${qs ? `?${qs}` : ""}`),
+  });
+}
+
+export function useStudent(id: number | null) {
+  return useQuery({
+    queryKey: ["student", id],
+    enabled: !!id,
+    queryFn: () => apiFetch<{ student: StudentDetail }>(`/students/${id}`),
+  });
+}
+
+export interface StudentCreatePayload {
+  name: string;
+  whatsapp: string;
+  dob?: string | null;
+  gender?: "L" | "P" | null;
+  address?: string | null;
+  parentName?: string | null;
+  parentPhone?: string | null;
+  programId: number;
+  classId: number;
+}
+
+export function useCreateStudent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: StudentCreatePayload) =>
+      apiFetch<{ student: StudentDetail; noid: string; sisaKuota: number; message: string }>(
+        "/students",
+        { method: "POST", body }
+      ),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["classes"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateStudent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Partial<StudentCreatePayload> }) =>
+      apiFetch<{ student: StudentDetail; message: string }>(`/students/${id}`, { method: "PUT", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeactivateStudent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ message: string }>(`/students/${id}/nonaktifkan`, { method: "POST" }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCutiStudent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: { start: string; end: string; reason?: string } }) =>
+      apiFetch<{ message: string }>(`/students/${id}/cuti`, { method: "POST", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUploadStudentFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, field, file }: { id: number; field: "foto" | "ktp"; file: File }) => {
+      const fd = new FormData();
+      fd.append(field, file);
+      return apiFetch<{ student: StudentDetail; message: string }>(`/students/${id}/upload-${field}`, {
+        method: "POST",
+        body: fd,
+      });
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
