@@ -14,7 +14,10 @@ import {
   Wallet,
   ClipboardCheck,
   GraduationCap,
+  Download,
+  FileText,
 } from "lucide-react";
+import { toast } from "sonner";
 import RoleDashboard from "@/components/dashboard/RoleDashboard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,7 +29,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tabs } from "@/components/ui/tabs";
 import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
-import { useStudent, useUpdateStudent, useDeactivateStudent, useCutiStudent } from "@/lib/queries";
+import { useStudent, useUpdateStudent, useDeactivateStudent, useCutiStudent, useReportsByStudent } from "@/lib/queries";
 import { fetchProtectedBlobUrl, isDevMode } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import type { StudentDetail, StudentStatus } from "@/lib/types-m3";
@@ -105,6 +108,7 @@ function useIdFromQuery(): number {
 
 function DetailContent({ id }: { id: number }) {
   const { data, isLoading } = useStudent(id);
+  const { data: reportData } = useReportsByStudent(id);
   const updateStudent = useUpdateStudent();
   const deactivateStudent = useDeactivateStudent();
   const cutiStudent = useCutiStudent();
@@ -266,6 +270,7 @@ function DetailContent({ id }: { id: number }) {
                 { key: "bayar", label: "Riwayat Bayar", count: student.invoices.length },
                 { key: "presensi", label: "Presensi", count: student.attendances.length },
                 { key: "nilai", label: "Nilai", count: student.grades.length },
+                { key: "raport", label: "Raport", count: reportData?.reports.length ?? 0 },
               ]}
               active={tab}
               onChange={setTab}
@@ -370,6 +375,54 @@ function DetailContent({ id }: { id: number }) {
                           <Badge variant={g.score >= 60 ? "success" : "danger"}>{g.score}</Badge>
                         </TableCell>
                         <TableCell className="text-slate-500">{g.notes ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )
+            )}
+
+            {tab === "raport" && (
+              (reportData?.reports ?? []).length === 0 ? (
+                <EmptyTab icon={FileText} text="Belum ada raport." />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Periode</TableHead>
+                      <TableHead>Kelas</TableHead>
+                      <TableHead className="text-right">Nilai Akhir</TableHead>
+                      <TableHead>Catatan</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(reportData?.reports ?? []).map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium text-slate-700">{r.period}</TableCell>
+                        <TableCell className="text-slate-600">{r.class?.name ?? "—"}</TableCell>
+                        <TableCell className="text-right font-semibold">{r.finalScore ?? "—"}</TableCell>
+                        <TableCell className="text-slate-500">{r.teacherNotes ?? "—"}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              if (isDevMode) {
+                                toast.info("PDF raport hanya tersedia saat terhubung ke backend.");
+                                return;
+                              }
+                              try {
+                                const url = await fetchProtectedBlobUrl(`/report-cards/${r.id}/pdf`);
+                                window.open(url, "_blank");
+                              } catch {
+                                toast.error("Gagal mengunduh raport.");
+                              }
+                            }}
+                          >
+                            <Download size={14} /> PDF
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

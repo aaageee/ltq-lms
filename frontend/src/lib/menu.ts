@@ -15,6 +15,7 @@ import {
   ArrowUpFromLine,
   Banknote,
   Settings2,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 import { Role } from "@/lib/types";
@@ -37,6 +38,7 @@ export const MENUS: Record<Role, MenuItem[]> = {
     { label: "Program", href: "/dashboard/admin/program", icon: BookOpen },
     { label: "Kelas", href: "/dashboard/admin/kelas", icon: CalendarDays },
     { label: "Guru", href: "/dashboard/admin/guru", icon: Users },
+    { label: "Kenaikan Level", href: "/dashboard/admin/kenaikan-level", icon: TrendingUp },
     { label: "Konfigurasi", href: "/dashboard/admin/konfigurasi", icon: Settings2 },
   ],
   GURU: [
@@ -45,6 +47,7 @@ export const MENUS: Record<Role, MenuItem[]> = {
     { label: "Presensi & Nilai", href: "/dashboard/guru/presensi", icon: ClipboardCheck },
     { label: "Rekap Presensi", href: "/dashboard/guru/rekap", icon: BarChart3 },
     { label: "Raport", href: "/dashboard/guru/raport", icon: FileText },
+    { label: "Kenaikan Level", href: "/dashboard/guru/kenaikan-level", icon: TrendingUp },
     { label: "Pengajuan Cuti", href: "/dashboard/guru/cuti", icon: Plane },
   ],
   TU: [

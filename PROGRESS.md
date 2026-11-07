@@ -19,7 +19,7 @@ Branch   : development
 - [x] M4-B — Frontend SPP: buat invoice, konfirmasi, download kwitansi
 - [x] M4-C — Integrasi Fonnte WA (template persis PRD §15, trigger #1–#3, #5) — ⏸️ token Fonnte belum ada
 - [x] M5   — Guru: presensi + nilai (1 transaksi) + cuti badal
-- [ ] M6   — Guru: raport PDF + kenaikan level + approval admin + WA #5
+- [x] M6   — Guru: raport PDF + kenaikan level + approval admin + WA #5
 - [ ] M7-A — Backend bendahara: kas (SPP derive dari payments), penggajian, export
 - [ ] M7-B — Frontend bendahara: dashboard kas + penggajian
 - [ ] M10  — Scheduled job harian node-cron (overdue invoice + backup DB)
@@ -30,6 +30,33 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M6
+- Status: ✅ selesai (8 Nov 2026)
+- Backend:
+  - `POST /api/report-cards` (GURU, harus guru kelas) — 1 raport per peserta/kelas/periode (409 jika duplikat)
+  - `GET /api/report-cards?classId=&period=` dan `/student/:id` (GURU/TU/ADMIN)
+  - `GET /api/report-cards/:id/pdf` — raport PDF (pdfkit, A4, header lembaga, identitas, nilai, catatan, rekomendasi, TTD guru)
+  - `POST /api/students/:id/kenaikan-level` (GURU) → `LevelUpRequest` pending (anti pengajuan ganda)
+  - `GET /api/kenaikan-level?status=` + `PUT /:id/approve` (update `enrollment.level` + **WA #5**) + `PUT /:id/reject` (ADMIN_CABANG)
+- Frontend:
+  - Guru → **Raport**: pilih kelas + tahun + semester, input nilai akhir/catatan/rekomendasi per siswa, simpan, unduh PDF
+  - Guru → **Kenaikan Level**: pilih kelas, ajukan level baru + catatan
+  - Admin → **Kenaikan Level**: daftar pengajuan, Setujui / Tolak (dengan alasan)
+  - TU → detail peserta: **tab Raport** (daftar + unduh PDF)
+- ✅ Uji backend: raport create/duplikat/list/PDF (2.1 KB valid), pengajuan level, approve (level enrollment berubah jadi "Level 2"), WA #5 tercatat, RBAC
+- ✅ Uji browser: raport (nilai 88 tampil + tombol PDF), admin approve list, tab Raport di detail peserta
+- ⏸️ PDF (raport & kwitansi) hanya tersedia di mode API asli — di preview GitHub Pages tombol menampilkan info
+
+### Status Akhir Sesi (8 Nov 2026)
+- **Selesai:** M0-A, M0-B, M1-A, M1-B, M2, M3-A, M3-B, M4-A, M4-B, M4-C (kode), M5, M6
+- **Berikutnya:** M7-A/M7-B (bendahara: kas, penggajian, export) → M10 (cron harian)
+- **⏸️ Butuh otorisasi/keputusan kamu:**
+  1. `FONNTE_TOKEN` + `FONNTE_DEVICE_ID` — WA belum benar-benar terkirim (semua log `failed`)
+  2. Upload bukti transfer (`proof_url`) belum ada endpoint — perlu keputusan penyimpanan (folder lokal)
+  3. PDF hanya di mode API (preview Pages menampilkan info)
+  4. Deploy backend/VPS (Dokploy) belum ada — Pages hanya frontend dummy
+  5. Password default (`admin123`, `ltq@2026`) wajib diganti sebelum deploy
+
 ### M5
 - Status: ✅ selesai (8 Nov 2026)
 - Backend `/api/guru` (GURU): jadwal-hari-ini (cocokkan `scheduleDays` dengan hari), daftar kelas, siswa per kelas + status presensi hari ini, rekap presensi bulanan, pengajuan cuti + daftar cuti, daftar guru lain (badal)
@@ -162,7 +189,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- M6: Raport PDF + kenaikan level + approval admin + WA #5
+- M7-A: Backend bendahara (kas masuk/keluar, rekap, penggajian, export)
 
 ## Catatan Pindah IDE
 <!-- Catat jika ada hal khusus yang perlu diketahui IDE baru -->

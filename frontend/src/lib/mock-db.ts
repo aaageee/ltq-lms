@@ -22,6 +22,8 @@ interface MockState {
   invoices: InvoiceRow[];
   attendances: { id: number; classId: number; studentId: number; sessionDate: string; studentStatus: string; teacherStatus: string }[];
   leaves: { id: number; teacherId: number; dateStart: string; dateEnd: string; reason: string | null; badalTeacherId: number | null; status: string; createdAt: string }[];
+  reportCards: { id: number; studentId: number; classId: number; period: string; finalScore: number | null; teacherNotes: string | null; levelRecommendation: string | null; issuedAt: string; class: { id: number; name: string } }[];
+  levelRequests: { id: number; studentId: number; classId: number; fromLevel: string | null; toLevel: string; notes: string | null; status: string; createdAt: string }[];
   nextProgramId: number;
   nextTeacherId: number;
   nextClassId: number;
@@ -31,6 +33,8 @@ interface MockState {
   nextInvoiceId: number;
   nextAttendanceId: number;
   nextLeaveId: number;
+  nextReportId: number;
+  nextLevelReqId: number;
 }
 
 function seedBase() {
@@ -212,6 +216,12 @@ function seed(): MockState {
     { id: 6, classId: 1, studentId: 4, sessionDate: "2026-11-05T09:00:00.000Z", studentStatus: "absen", teacherStatus: "hadir" },
   ];
   const leaves: MockState["leaves"] = [];
+  const reportCards: MockState["reportCards"] = [
+    { id: 1, studentId: 1, classId: 1, period: "2026-S1", finalScore: 88, teacherNotes: "Bacaan lancar, tajwid baik", levelRecommendation: "Naik ke Level 2", issuedAt: "2026-11-07T00:00:00.000Z", class: { id: 1, name: "Kelas Tahsin A" } },
+  ];
+  const levelRequests: MockState["levelRequests"] = [
+    { id: 1, studentId: 1, classId: 1, fromLevel: "Level 1", toLevel: "Level 2", notes: "Sudah lancar", status: "pending", createdAt: "2026-11-07T00:00:00.000Z" },
+  ];
 
   return {
     programs,
@@ -221,6 +231,8 @@ function seed(): MockState {
     invoices,
     attendances,
     leaves,
+    reportCards,
+    levelRequests,
     nextProgramId: 4,
     nextTeacherId: 5,
     nextClassId: 7,
@@ -230,6 +242,8 @@ function seed(): MockState {
     nextInvoiceId: 6,
     nextAttendanceId: 7,
     nextLeaveId: 1,
+    nextReportId: 2,
+    nextLevelReqId: 2,
   };
 }
 
@@ -284,7 +298,6 @@ function generateNoID(): string {
 
 // Router mock: meniru endpoint backend
 export async function mockRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
-  console.log("[mock] hit", method, path);
   // tanpa delay: hindari timer throttling di tab background (dev/preview)
 
   const m = method.toUpperCase();
@@ -823,6 +836,102 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
       if (s.score !== null && s.score !== undefined) grades += 1;
     }
     return { message: `Sesi tersimpan: ${list.length} presensi, ${grades} nilai.`, attendances: list.length, grades, sessionDate } as T;
+  }
+
+  // ── RAPORT & KENAIKAN LEVEL (M6) ──
+  if (resource === "report-cards") {
+    if (m === "GET" && idPart === "student") {
+      const sid = Number(rawPath.split("/")[3]);
+      return { reports: state.reportCards.filter((r) => r.studentId === sid) } as T;
+    }
+    if (m === "GET" && idPart && rawPath.split("/")[3] === "pdf") {
+      throw new MockApiError("PDF raport hanya tersedia saat terhubung ke backend.", 501);
+    }
+    if (m === "GET" && !idPart) {
+      const classId = query.get("classId") ? Number(query.get("classId")) : null;
+      const period = query.get("period");
+      let rows = [...state.reportCards];
+      if (classId) rows = rows.filter((r) => r.classId === classId);
+      if (period) rows = rows.filter((r) => r.period === period);
+      return { reports: rows } as T;
+    }
+    if (m === "POST" && !idPart) {
+      const studentId = Number(payload.studentId ?? payload.student_id);
+      const classId = Number(payload.classId ?? payload.class_id);
+      const period = String(payload.period ?? "").trim();
+      if (!/^\d{4}-S[12]$/.test(period)) throw new MockApiError("Format periode: YYYY-Sn (contoh 2026-S1)");
+      if (state.reportCards.some((r) => r.studentId === studentId && r.classId === classId && r.period === period)) {
+        throw new MockApiError(`Raport peserta untuk periode ${period} sudah ada.`, 409);
+      }
+      const cls = state.classes.find((c) => c.id === classId);
+      const report = {
+        id: state.nextReportId++,
+        studentId,
+        classId,
+        period,
+        finalScore: Number(payload.finalScore ?? payload.final_score ?? 0),
+        teacherNotes: payload.teacherNotes ? String(payload.teacherNotes) : null,
+        levelRecommendation: payload.levelRecommendation ? String(payload.levelRecommendation) : null,
+        issuedAt: new Date().toISOString(),
+        class: { id: classId, name: cls?.name ?? "-" },
+      };
+      state.reportCards.push(report);
+      return { report, message: "Raport berhasil disimpan." } as T;
+    }
+  }
+
+  if (resource === "students" && id && action === "kenaikan-level" && m === "POST") {
+    const student = state.students.find((s) => s.id === id);
+    if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
+    const enrollment = student.enrollments[0];
+    if (!enrollment) throw new MockApiError("Peserta belum terdaftar di kelas aktif mana pun.");
+    if (state.levelRequests.some((r) => r.studentId === id && r.status === "pending")) {
+      throw new MockApiError("Sudah ada pengajuan kenaikan level yang menunggu persetujuan.", 409);
+    }
+    const request = {
+      id: state.nextLevelReqId++,
+      studentId: id,
+      classId: enrollment.class.id,
+      fromLevel: "Level 1",
+      toLevel: String(payload.levelBaru ?? payload.level_baru ?? ""),
+      notes: payload.catatan ? String(payload.catatan) : null,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+    state.levelRequests.unshift(request);
+    return { request, message: "Pengajuan kenaikan level terkirim ke admin." } as T;
+  }
+
+  if (resource === "kenaikan-level") {
+    if (m === "GET" && !idPart) {
+      const status = query.get("status");
+      const rows = state.levelRequests
+        .filter((r) => (status ? r.status === status : true))
+        .map((r) => {
+          const st = state.students.find((x) => x.id === r.studentId);
+          const cls = state.classes.find((c) => c.id === r.classId);
+          return {
+            ...r,
+            student: st ? { id: st.id, noid: st.noid, name: st.name } : null,
+            class: cls ? { id: cls.id, name: cls.name, program: { name: cls.program.name } } : null,
+          };
+        });
+      return { requests: rows } as T;
+    }
+    if (m === "PUT" && id && action === "approve") {
+      const req2 = state.levelRequests.find((r) => r.id === id);
+      if (!req2) throw new MockApiError("Pengajuan tidak ditemukan.", 404);
+      if (req2.status !== "pending") throw new MockApiError("Pengajuan ini sudah diproses.", 409);
+      req2.status = "approved";
+      return { request: req2, message: "Kenaikan level disetujui dan WA #5 dicatat." } as T;
+    }
+    if (m === "PUT" && id && action === "reject") {
+      const req2 = state.levelRequests.find((r) => r.id === id);
+      if (!req2) throw new MockApiError("Pengajuan tidak ditemukan.", 404);
+      if (req2.status !== "pending") throw new MockApiError("Pengajuan ini sudah diproses.", 409);
+      req2.status = "rejected";
+      return { request: req2, message: "Pengajuan kenaikan level ditolak." } as T;
+    }
   }
 
   throw new MockApiError(`Endpoint mock tidak dikenal: ${m} ${path}`, 404);

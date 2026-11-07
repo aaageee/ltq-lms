@@ -10,6 +10,8 @@ import studentRoutes from "./routes/students";
 import invoiceRoutes from "./routes/invoices";
 import guruRoutes from "./routes/guru";
 import attendanceRoutes from "./routes/attendances";
+import reportCardRoutes from "./routes/reportCards";
+import levelAdminRoutes, { studentLevelRouter } from "./routes/levels";
 
 dotenv.config();
 
@@ -30,10 +32,13 @@ app.use("/api/auth", authRoutes);
 app.use("/api/programs", programRoutes);
 app.use("/api/classes", classRoutes);
 app.use("/api/teachers", teacherRoutes);
+app.use("/api/students", studentLevelRouter); // harus sebelum studentRoutes (middleware TU)
 app.use("/api/students", studentRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/guru", guruRoutes);
 app.use("/api/attendances", attendanceRoutes);
+app.use("/api/report-cards", reportCardRoutes);
+app.use("/api/kenaikan-level", levelAdminRoutes);
 
 // 404 untuk endpoint tak dikenal
 app.use((_req: Request, res: Response) => {

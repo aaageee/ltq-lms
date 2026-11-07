@@ -445,3 +445,110 @@ export function useAjukanCuti() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+// ── RAPORT & KENAIKAN LEVEL (M6) ──
+export interface ReportRow {
+  id: number;
+  studentId: number;
+  classId: number;
+  period: string;
+  finalScore: number | null;
+  teacherNotes: string | null;
+  levelRecommendation: string | null;
+  issuedAt: string;
+  class?: { id: number; name: string; program?: { name: string } };
+}
+
+export interface LevelRequestRow {
+  id: number;
+  studentId: number;
+  classId: number;
+  fromLevel: string | null;
+  toLevel: string;
+  notes: string | null;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  student?: { id: number; noid: string; name: string };
+  class?: { id: number; name: string; program: { name: string } };
+}
+
+export function useReportsByClass(classId: number, period: string) {
+  return useQuery({
+    queryKey: ["reports", "class", classId, period],
+    queryFn: () => apiFetch<{ reports: ReportRow[] }>(`/report-cards?classId=${classId}&period=${period}`),
+  });
+}
+
+export function useReportsByStudent(studentId: number) {
+  return useQuery({
+    queryKey: ["reports", "student", studentId],
+    queryFn: () => apiFetch<{ reports: ReportRow[] }>(`/report-cards/student/${studentId}`),
+  });
+}
+
+export function useSaveReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      studentId: number;
+      classId: number;
+      period: string;
+      finalScore: number;
+      teacherNotes?: string | null;
+      levelRecommendation?: string | null;
+    }) => apiFetch<{ report: ReportRow; message: string }>("/report-cards", { method: "POST", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useAjukanLevel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, body }: { studentId: number; body: { levelBaru: string; catatan?: string } }) =>
+      apiFetch<{ message: string }>(`/students/${studentId}/kenaikan-level`, { method: "POST", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["levels"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useLevelRequests(status?: string) {
+  const qs = status ? `?status=${status}` : "";
+  return useQuery({
+    queryKey: ["levels", status ?? "all"],
+    queryFn: () => apiFetch<{ requests: LevelRequestRow[] }>(`/kenaikan-level${qs}`),
+  });
+}
+
+export function useApproveLevel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ message: string }>(`/kenaikan-level/${id}/approve`, { method: "PUT" }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["levels"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRejectLevel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, alasan }: { id: number; alasan?: string }) =>
+      apiFetch<{ message: string }>(`/kenaikan-level/${id}/reject`, { method: "PUT", body: { alasan } }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["levels"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
