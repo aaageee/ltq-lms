@@ -9,7 +9,7 @@ import { requireRole } from "../middleware/requireRole";
 import { asyncHandler } from "../utils/asyncHandler";
 import { sanitizeWA, isValidWA } from "../utils/sanitizeWA";
 import { generateNoID } from "../utils/generateNoID";
-import { buildWaPendaftaran, logWa } from "../services/wa";
+import { waKonfirmasiDaftar, sendWABackground } from "../services/whatsapp";
 
 const router = Router();
 
@@ -343,7 +343,7 @@ router.post(
 
       // 6) Log WA #1 (pengiriman aktual di M4-C)
       const branch = await prisma.branch.findUnique({ where: { id: branchId } });
-      const message = buildWaPendaftaran({
+      const message = waKonfirmasiDaftar({
         nama: result.student.name,
         program: result.cls.program.name,
         kelas: result.cls.name,
@@ -353,7 +353,7 @@ router.post(
         rekening_bank: branch?.bankAccount ?? "-",
         nama_lembaga: branch?.name ?? "LTQ Markaz AlQuran",
       });
-      await logWa({ recipient: result.student.whatsapp, message, triggerType: "#1" });
+      sendWABackground(result.student.whatsapp, message, "#1");
 
       res.status(201).json({
         student: result.student,

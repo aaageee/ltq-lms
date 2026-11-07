@@ -7,6 +7,7 @@ import programRoutes from "./routes/programs";
 import classRoutes from "./routes/classes";
 import teacherRoutes from "./routes/teachers";
 import studentRoutes from "./routes/students";
+import invoiceRoutes from "./routes/invoices";
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use("/api/programs", programRoutes);
 app.use("/api/classes", classRoutes);
 app.use("/api/teachers", teacherRoutes);
 app.use("/api/students", studentRoutes);
+app.use("/api/invoices", invoiceRoutes);
 
 // 404 untuk endpoint tak dikenal
 app.use((_req: Request, res: Response) => {
