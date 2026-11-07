@@ -4,6 +4,7 @@
 
 import type { ClassRow, Program, Teacher } from "./types-m2";
 import type { StudentDetail, StudentRow, StudentStatus } from "./types-m3";
+import type { InvoiceRow } from "./types-m4";
 
 export class MockApiError extends Error {
   status: number;
@@ -18,14 +19,15 @@ interface MockState {
   teachers: Teacher[];
   classes: ClassRow[];
   students: StudentDetail[];
+  invoices: InvoiceRow[];
   nextProgramId: number;
   nextTeacherId: number;
   nextClassId: number;
   nextStudentId: number;
   nextEnrollmentId: number;
-  nextInvoiceId: number;
   nextAttendanceId: number;
   nextGradeId: number;
+  nextInvoiceId: number;
 }
 
 function seedBase() {
@@ -155,19 +157,63 @@ function seed(): MockState {
     { id: 3, gradeType: "harian", score: 75, notes: "Perlu latihan makhraj", createdAt: "2026-10-20T10:00:00.000Z", class: { name: "Kelas Tahsin A" } },
   ];
 
+  const invoices: InvoiceRow[] = [
+    {
+      id: 1, studentId: 1, period: "2026-10",
+      components: [{ nama: "SPP", jumlah: 300000 }, { nama: "Kegiatan", jumlah: 50000 }],
+      totalAmount: 350000, dueDate: "2026-10-07T00:00:00.000Z", status: "paid",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      student: { id: 1, noid: "LTQ-JKT-2026-001", name: "Muhammad Rizky", whatsapp: "6281234567890" },
+      payments: [{ id: 1, amount: 350000, method: "transfer", proofUrl: null, confirmedAt: "2026-10-05T09:00:00.000Z", createdAt: "2026-10-05T08:00:00.000Z" }],
+    },
+    {
+      id: 2, studentId: 2, period: "2026-11",
+      components: [{ nama: "SPP", jumlah: 300000 }],
+      totalAmount: 300000, dueDate: "2026-11-14T00:00:00.000Z", status: "unpaid",
+      createdAt: "2026-11-01T00:00:00.000Z",
+      student: { id: 2, noid: "LTQ-JKT-2026-002", name: "Aisyah Putri", whatsapp: "6281234567891" },
+      payments: [],
+    },
+    {
+      id: 3, studentId: 3, period: "2026-09",
+      components: [{ nama: "SPP", jumlah: 300000 }],
+      totalAmount: 300000, dueDate: "2026-09-07T00:00:00.000Z", status: "overdue",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      student: { id: 3, noid: "LTQ-JKT-2026-003", name: "Abdurrahman Hakim", whatsapp: "6281234567892" },
+      payments: [],
+    },
+    {
+      id: 4, studentId: 4, period: "2026-11",
+      components: [{ nama: "SPP", jumlah: 300000 }, { nama: "Kegiatan", jumlah: 50000 }],
+      totalAmount: 350000, dueDate: "2026-11-10T00:00:00.000Z", status: "unpaid",
+      createdAt: "2026-11-03T00:00:00.000Z",
+      student: { id: 4, noid: "LTQ-JKT-2026-004", name: "Fatimah Az-Zahra", whatsapp: "6281234567893" },
+      payments: [],
+    },
+    {
+      id: 5, studentId: 5, period: "2026-11",
+      components: [{ nama: "SPP", jumlah: 300000 }],
+      totalAmount: 300000, dueDate: "2026-11-14T00:00:00.000Z", status: "unpaid",
+      createdAt: "2026-11-04T00:00:00.000Z",
+      student: { id: 5, noid: "LTQ-JKT-2026-005", name: "Yusuf Al-Amin", whatsapp: "6281234567894" },
+      payments: [],
+    },
+  ];
+
   return {
     programs,
     teachers,
     classes,
     students,
+    invoices,
     nextProgramId: 4,
     nextTeacherId: 5,
     nextClassId: 7,
     nextStudentId: 9,
     nextEnrollmentId: 2000,
-    nextInvoiceId: 3,
     nextAttendanceId: 5,
     nextGradeId: 4,
+    nextInvoiceId: 6,
   };
 }
 
@@ -414,7 +460,9 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
     if (m === "GET" && id && !action) {
       const student = state.students.find((s) => s.id === id);
       if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
-      return { student } as T;
+      return {
+        student: { ...student, invoices: state.invoices.filter((inv) => inv.studentId === id) },
+      } as T;
     }
 
     if (m === "POST" && !id) {
@@ -530,6 +578,104 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
       student.cutiEnd = payload.end ? String(payload.end) : null;
       student.cutiReason = payload.reason ? String(payload.reason) : null;
       return { student, message: "Peserta ditandai cuti." } as T;
+    }
+  }
+
+  // ── INVOICES (M4) ──
+  if (resource === "invoices") {
+    if (m === "GET" && !idPart) {
+      const status = query.get("status");
+      const periode = query.get("periode");
+      const search = (query.get("search") ?? "").toLowerCase().trim();
+      let rows = [...state.invoices];
+      if (status) rows = rows.filter((i) => i.status === status);
+      if (periode) rows = rows.filter((i) => i.period === periode);
+      if (search) rows = rows.filter((i) => i.student.name.toLowerCase().includes(search) || i.student.noid.toLowerCase().includes(search));
+      return { invoices: rows.sort((a, b) => b.id - a.id) } as T;
+    }
+
+    if (m === "GET" && idPart === "tunggakan") {
+      const rows = state.invoices.filter((i) => i.status === "unpaid" || i.status === "overdue");
+      const now = Date.now();
+      const data = rows.map((i) => ({ ...i, daysOverdue: Math.max(0, Math.floor((now - new Date(i.dueDate).getTime()) / 86400000)) }));
+      return { tunggakan: data, totalNominal: data.reduce((s2, i) => s2 + i.totalAmount, 0), jumlah: data.length } as T;
+    }
+
+    if (m === "POST" && !idPart) {
+      const studentId = Number(payload.studentId ?? payload.student_id);
+      const period = String(payload.period ?? payload.periode ?? "").trim();
+      const components = (payload.components ?? []) as { nama: string; jumlah: number }[];
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) throw new MockApiError('Format periode wajib "YYYY-MM" (contoh: 2026-01).');
+      if (!Array.isArray(components) || components.length === 0) throw new MockApiError("Minimal satu komponen biaya.");
+      const student = state.students.find((s) => s.id === studentId);
+      if (!student) throw new MockApiError("Peserta tidak ditemukan.", 404);
+      if (state.invoices.some((i) => i.studentId === studentId && i.period === period)) {
+        throw new MockApiError(`Peserta ini sudah memiliki invoice untuk periode ${period}. Konfirmasi pembayaran invoice yang ada terlebih dahulu.`, 409);
+      }
+      const totalAmount = components.reduce((sum, c) => sum + Number(c.jumlah), 0);
+      const due = new Date();
+      due.setDate(due.getDate() + 7);
+      const invoice: InvoiceRow = {
+        id: state.nextInvoiceId++,
+        studentId,
+        period,
+        components,
+        totalAmount,
+        dueDate: due.toISOString(),
+        status: "unpaid",
+        createdAt: new Date().toISOString(),
+        student: { id: student.id, noid: student.noid, name: student.name, whatsapp: student.whatsapp },
+        payments: [],
+      };
+      state.invoices.push(invoice);
+      return { invoice, message: "Invoice berhasil dibuat." } as T;
+    }
+
+    if (m === "PUT" && id && action === "konfirmasi-bayar") {
+      const invoice = state.invoices.find((i) => i.id === id);
+      if (!invoice) throw new MockApiError("Invoice tidak ditemukan.", 404);
+      if (invoice.status === "paid") throw new MockApiError("Invoice ini sudah lunas.", 409);
+      if (invoice.status === "cancelled") throw new MockApiError("Invoice sudah dibatalkan.", 409);
+      const amount = Number(payload.amount);
+      if (Math.abs(amount - invoice.totalAmount) > 0.01) {
+        throw new MockApiError(
+          `Nominal pembayaran harus sama dengan total tagihan (Rp ${new Intl.NumberFormat("id-ID").format(invoice.totalAmount)}). Pembayaran parsial tidak diperbolehkan.`
+        );
+      }
+      const payment = {
+        id: Date.now(),
+        amount,
+        method: payload.method ? String(payload.method) : null,
+        proofUrl: payload.proofUrl ? String(payload.proofUrl) : null,
+        confirmedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+      invoice.status = "paid";
+      invoice.payments = [payment, ...invoice.payments];
+      return { invoice, payment, message: "Pembayaran berhasil dikonfirmasi." } as T;
+    }
+
+    if (m === "PUT" && id && action === "batalkan") {
+      const invoice = state.invoices.find((i) => i.id === id);
+      if (!invoice) throw new MockApiError("Invoice tidak ditemukan.", 404);
+      const reason = String(payload.alasan ?? payload.reason ?? "").trim();
+      if (!reason) throw new MockApiError("Alasan pembatalan wajib diisi.");
+      if (invoice.status === "paid") throw new MockApiError("Invoice yang sudah lunas tidak bisa dibatalkan.", 409);
+      invoice.status = "cancelled";
+      invoice.cancelReason = reason;
+      return { invoice, message: "Invoice dibatalkan." } as T;
+    }
+
+    if (m === "POST" && id && action === "kirim-reminder") {
+      const invoice = state.invoices.find((i) => i.id === id);
+      if (!invoice) throw new MockApiError("Invoice tidak ditemukan.", 404);
+      if (invoice.status === "paid") throw new MockApiError("Invoice sudah lunas, tidak perlu reminder.", 409);
+      const preview = `Assalamualaikum *${invoice.student.name}*,\n\n📋 Reminder tagihan SPP:\n💰 Nominal      : Rp ${new Intl.NumberFormat("id-ID").format(invoice.totalAmount)}\n📅 Jatuh tempo  : ${new Date(invoice.dueDate).toLocaleDateString("id-ID", { dateStyle: "long" })}\n\nSilakan transfer ke:\n🏦 1234567890 (Bank Syariah)\n   a.n LTQ Markaz AlQuran\n\nBalas pesan ini setelah transfer untuk konfirmasi.\nTerima kasih! 🙏`;
+      return { message: "Reminder tagihan dicatat dan sedang dikirim via WhatsApp.", preview } as T;
+    }
+
+    if (m === "GET" && id && action === "kwitansi") {
+      throw new MockApiError("Kwitansi PDF hanya tersedia saat terhubung ke backend.", 501);
     }
   }
 

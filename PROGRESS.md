@@ -14,10 +14,10 @@ Branch   : development
 - [x] M1-B — Frontend login + shortcut dev + dashboard dummy semua role
 - [x] M2   — Admin: CRUD program, kelas, guru
 - [x] M3-A — Backend PSB: input peserta, NoID, assign kelas, upload ke /uploads
-- [ ] M3-B — Frontend PSB: form multi-step + halaman detail peserta
-- [ ] M4-A — Backend SPP: invoice, konfirmasi bayar (TU|BENDAHARA), kwitansi PDF
-- [ ] M4-B — Frontend SPP: buat invoice, konfirmasi, download kwitansi
-- [ ] M4-C — Integrasi Fonnte WA (template persis PRD §15, trigger #1–#3, #5)
+- [x] M3-B — Frontend PSB: form multi-step + halaman detail peserta
+- [x] M4-A — Backend SPP: invoice, konfirmasi bayar (TU|BENDAHARA), kwitansi PDF
+- [x] M4-B — Frontend SPP: buat invoice, konfirmasi, download kwitansi
+- [x] M4-C — Integrasi Fonnte WA (template persis PRD §15, trigger #1–#3, #5) — ⏸️ token Fonnte belum ada
 - [ ] M5   — Guru: presensi + nilai (1 transaksi) + cuti badal
 - [ ] M6   — Guru: raport PDF + kenaikan level + approval admin + WA #5
 - [ ] M7-A — Backend bendahara: kas (SPP derive dari payments), penggajian, export
@@ -30,6 +30,41 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M3-B
+- Status: ✅ selesai (8 Nov 2026)
+- Halaman `/dashboard/tu/peserta`: tabel peserta + filter status/program + pencarian (debounce), badge status
+- Drawer form **multi-step 3 langkah**: biodata (+ dropzone foto/KTP dengan preview) → program & kelas (sisa kuota, kelas penuh/tanpa guru disabled) → konfirmasi + ringkasan
+- Setelah simpan: dialog sukses menampilkan **NoID** + tombol lihat detail
+- Halaman detail `/dashboard/tu/peserta/detail?id=…`: kartu biodata + foto, tab **Riwayat Bayar / Presensi / Nilai**, aksi Edit Biodata, Cuti, Nonaktifkan
+- ⚠️ Detail memakai query param `?id=` (bukan route dinamis) karena `output: export` tidak mendukung dynamic segment tanpa `generateStaticParams`; `useSearchParams` diganti pembacaan URL langsung agar tidak menggantung di static export
+- Foto peserta di mode API asli diambil lewat endpoint ber-token → blob URL (bukan `<img src>` langsung)
+- Mock diperluas: 8 peserta + invoice/presensi/nilai demo agar preview GitHub Pages tetap hidup
+
+### M4-A
+- Status: ✅ selesai (8 Nov 2026)
+- Endpoint `/api/invoices` (TU & BENDAHARA): list + filter status/periode/nama, `/tunggakan` (unpaid/overdue + `daysOverdue`), POST buat invoice (periode wajib `YYYY-MM`, duplikat 409), konfirmasi bayar (nominal **wajib sama** dengan total), batalkan (alasan wajib), **kwitansi PDF** (pdfkit), kirim reminder WA #3
+- `services/invoiceService.ts` memisahkan business logic dari route
+- `services/whatsapp.ts`: template WA #1–#5 **verbatim PRD §15** + `sendWA` Fonnte (non-blocking, gagal → log `failed`, tidak throw)
+- ✅ Uji: create/duplikat/format periode, list, tunggakan, tolak nominal parsial, konfirmasi, PDF valid (2.2 KB, 1 halaman), reminder, batal, RBAC (guru 403, bendahara boleh)
+- ⚠️ Bukti transfer (`proof_url`) belum ada endpoint upload — field tersedia di API, upload file menyusul
+
+### M4-B
+- Status: ✅ selesai (8 Nov 2026)
+- Halaman `/dashboard/tu/spp` 3 tab:
+  - **Buat Invoice**: cari peserta, periode (month picker), komponen biaya dinamis (tambah/hapus baris), preview total
+  - **Daftar Invoice**: filter status/periode/cari, warna baris (merah terlambat, kuning jatuh tempo ≤3 hari), aksi Bayar (dialog nominal+metode), Reminder (preview teks WA #3 sebelum kirim), Batalkan (alasan), Download Kwitansi
+  - **Tunggakan**: daftar tunggakan + checkbox + kirim reminder massal
+- Mock mode: invoice seed 5 baris (lunas/belum/terlambat), konfirmasi & pembatalan berfungsi; PDF hanya di mode API (mock menampilkan info)
+- ✅ Uji browser: daftar tampil, dialog bayar prefill nominal, konfirmasi → status Lunas
+
+### M4-C
+- Status: ✅ selesai kode (8 Nov 2026) — ⏸️ **butuh token Fonnte untuk uji kirim nyata**
+- `services/whatsapp.ts`: `sanitizeWA`, `sendWA` (POST api.fonnte.com/send, header Bearer token, body target/message/countryCode), template #1–#5 verbatim PRD
+- Trigger terpasang: WA #1 (daftar peserta), WA #2 (konfirmasi bayar), WA #3 (reminder) — dikirim background setelah transaksi sukses
+- WA #4 & #5 tersedia sebagai fungsi (dipakai M6 / M8)
+- Tanpa `FONNTE_TOKEN`: pesan **tidak dikirim** dan dicatat `status=failed` di `WaLog` (tidak menggagalkan alur bisnis)
+- ⏸️ **PERLU OTORISASI**: isi `FONNTE_TOKEN` + `FONNTE_DEVICE_ID` di `backend/.env` (dan secret deploy) untuk aktivasi pengiriman
+
 ### M3-A
 - Status: ✅ selesai (1 Nov 2026)
 - **Endpoint** (`/api/students`, role TU saja):
@@ -118,7 +153,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- M3-B: Frontend PSB (tabel peserta + filter, form multi-step, halaman detail peserta)
+- M5: Guru presensi & nilai harian (jadwal, presensi+nilai 1 transaksi, rekap, cuti badal)
 
 ## Catatan Pindah IDE
 <!-- Catat jika ada hal khusus yang perlu diketahui IDE baru -->

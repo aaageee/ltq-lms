@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { apiFetch } from "./api";
 import type { ClassRow, Program, Teacher } from "./types-m2";
 import type { StudentDetail, StudentRow } from "./types-m3";
+import type { InvoiceRow } from "./types-m4";
 
 // ── PROGRAMS ──
 export function usePrograms() {
@@ -278,6 +279,89 @@ export function useUploadStudentFile() {
       qc.invalidateQueries({ queryKey: ["students"] });
       qc.invalidateQueries({ queryKey: ["student"] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── INVOICES (M4) ──
+export function useInvoices(filters: { status?: string; periode?: string; search?: string }) {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.periode) params.set("periode", filters.periode);
+  if (filters.search) params.set("search", filters.search);
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ["invoices", filters],
+    queryFn: () => apiFetch<{ invoices: InvoiceRow[] }>(`/invoices${qs ? `?${qs}` : ""}`),
+  });
+}
+
+export function useTunggakan() {
+  return useQuery({
+    queryKey: ["tunggakan"],
+    queryFn: () =>
+      apiFetch<{ tunggakan: InvoiceRow[]; totalNominal: number; jumlah: number }>("/invoices/tunggakan"),
+  });
+}
+
+export interface InvoiceCreatePayload {
+  studentId: number;
+  period: string;
+  components: { nama: string; jumlah: number }[];
+}
+
+export function useCreateInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: InvoiceCreatePayload) =>
+      apiFetch<{ invoice: InvoiceRow; message: string }>("/invoices", { method: "POST", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["tunggakan"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useConfirmPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: { amount: number; method?: string; proofUrl?: string | null } }) =>
+      apiFetch<{ invoice: InvoiceRow; message: string }>(`/invoices/${id}/konfirmasi-bayar`, {
+        method: "PUT",
+        body,
+      }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["tunggakan"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCancelInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, alasan }: { id: number; alasan: string }) =>
+      apiFetch<{ message: string }>(`/invoices/${id}/batalkan`, { method: "PUT", body: { alasan } }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["tunggakan"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSendReminder() {
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ message: string; preview: string }>(`/invoices/${id}/kirim-reminder`, { method: "POST" }),
+    onSuccess: (data) => toast.success(data.message),
     onError: (e: Error) => toast.error(e.message),
   });
 }
