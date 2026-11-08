@@ -22,19 +22,25 @@ async function main() {
   // 2. 5 akun default — password admin123 (8 karakter + angka, sesuai NFR)
   const passwordHash = await bcrypt.hash("admin123", 12);
 
-  const accounts: Array<{ email: string; role: "SUPER_ADMIN" | "ADMIN_CABANG" | "GURU" | "TU" | "BENDAHARA"; branchId: number | null }> = [
-    { email: "superadmin@ltq.id", role: "SUPER_ADMIN", branchId: null },
-    { email: "admin@ltq.id", role: "ADMIN_CABANG", branchId: branch.id },
-    { email: "guru@ltq.id", role: "GURU", branchId: branch.id },
-    { email: "tu@ltq.id", role: "TU", branchId: branch.id },
-    { email: "bendahara@ltq.id", role: "BENDAHARA", branchId: branch.id },
+  const accounts: Array<{
+    name: string;
+    email: string;
+    role: "SUPER_ADMIN" | "ADMIN_CABANG" | "GURU" | "TU" | "BENDAHARA";
+    branchId: number | null;
+  }> = [
+    { name: "Super Admin", email: "superadmin@ltq.id", role: "SUPER_ADMIN", branchId: null },
+    { name: "Ust. Ahmad Fauzi", email: "admin@ltq.id", role: "ADMIN_CABANG", branchId: branch.id },
+    { name: "Ust. Abdul Karim", email: "guru@ltq.id", role: "GURU", branchId: branch.id },
+    { name: "Ustazah Maryam", email: "tu@ltq.id", role: "TU", branchId: branch.id },
+    { name: "Ust. Rahman Hakim", email: "bendahara@ltq.id", role: "BENDAHARA", branchId: branch.id },
   ];
 
   for (const acc of accounts) {
     await prisma.user.upsert({
       where: { email: acc.email },
-      update: { role: acc.role, branchId: acc.branchId },
+      update: { name: acc.name, role: acc.role, branchId: acc.branchId },
       create: {
+        name: acc.name,
         email: acc.email,
         passwordHash,
         role: acc.role,

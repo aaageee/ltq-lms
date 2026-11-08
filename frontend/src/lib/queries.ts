@@ -552,3 +552,136 @@ export function useRejectLevel() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+// ── SUPER ADMIN: CABANG & AKUN (M9) ──
+export interface BranchRow {
+  id: number;
+  code: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  bankAccount: string | null;
+  isActive: boolean;
+  _count?: { students: number; classes: number; users: number };
+}
+
+export interface AdminRow {
+  id: number;
+  name: string | null;
+  email: string;
+  role: string;
+  isActive: boolean;
+  branchId: number | null;
+  branch?: { id: number; name: string; code: string } | null;
+}
+
+export function useBranches() {
+  return useQuery({
+    queryKey: ["branches"],
+    queryFn: () => apiFetch<{ branches: BranchRow[] }>("/branches"),
+  });
+}
+
+export function useCreateBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      name: string;
+      code: string;
+      address?: string | null;
+      phone?: string | null;
+      bankAccount?: string | null;
+    }) => apiFetch<{ branch: BranchRow; message: string }>("/branches", { method: "POST", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["branches"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Partial<BranchRow> }) =>
+      apiFetch<{ branch: BranchRow; message: string }>(`/branches/${id}`, { method: "PUT", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["branches"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeactivateBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ message: string }>(`/branches/${id}`, { method: "DELETE" }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["branches"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useAdmins() {
+  return useQuery({
+    queryKey: ["admins"],
+    queryFn: () => apiFetch<{ users: AdminRow[] }>("/admins"),
+  });
+}
+
+export function useCreateAdmin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      name: string;
+      email: string;
+      password: string;
+      role: string;
+      branchId: number;
+    }) => apiFetch<{ user: AdminRow; message: string }>("/admins", { method: "POST", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["admins"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateAdmin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Partial<AdminRow> }) =>
+      apiFetch<{ user: AdminRow; message: string }>(`/admins/${id}`, { method: "PUT", body }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["admins"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useResetAdminPassword() {
+  return useMutation({
+    mutationFn: ({ id, password }: { id: number; password: string }) =>
+      apiFetch<{ message: string }>(`/admins/${id}/reset-password`, { method: "POST", body: { password } }),
+    onSuccess: (data) => toast.success(data.message),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeactivateAdmin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ message: string }>(`/admins/${id}/nonaktifkan`, { method: "POST" }),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      qc.invalidateQueries({ queryKey: ["admins"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}

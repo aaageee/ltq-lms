@@ -26,10 +26,20 @@ Branch   : development
 
 ### Ditunda (post-MVP)
 - ⏸️ M8   — Daftar ulang semester + WA blast (MVP: TU proses manual via invoice)
-- ⏸️ M9   — Super Admin CRUD cabang/akun admin (MVP: akun dari seeder)
+- [x] M9   — Super Admin CRUD cabang/akun admin (+ akun TU/Bendahara per cabang)
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### M9
+- Status: ✅ selesai (8 Nov 2026) — sebelumnya ditunda, kini diaktifkan
+- **Schema**: kolom `User.name` ditambahkan (migration `add_user_name`) → nama tampil di topbar; seeder mengisi nama 5 akun; login & `/me` mengembalikan `name`
+- **Backend `/api/branches`** (SUPER_ADMIN): list + jumlah peserta/kelas/guru, create (kode unik 409), edit, soft delete; **cabang aktif terakhir tidak boleh dinonaktifkan**
+- **Backend `/api/admins`** (SUPER_ADMIN): list & CRUD akun `ADMIN_CABANG`/`TU`/`BENDAHARA` per cabang, reset password (NFR min 8 + angka), nonaktifkan; akun SUPER_ADMIN tidak bisa diubah lewat modul ini
+  - ⚠️ Melebihi spec M9 (yang hanya Admin Cabang): TU & Bendahara juga bisa dibuat per cabang — menjawab kebutuhan multi-cabang
+- **Frontend**: halaman **Cabang** (tabel + modal + nonaktifkan), **Manajemen Akun** (tambah/edit/reset password/nonaktifkan, role & cabang), dashboard Super Admin memakai **data asli** (total cabang/peserta/guru)
+- ✅ Uji backend: buat cabang SBY, kode duplikat 409, buat akun Admin & TU cabang SBY, login akun baru, reset password, nonaktifkan (login 403), cabang terakhir tidak bisa dinonaktifkan, RBAC 403 untuk Admin Cabang
+- ✅ Uji browser: daftar cabang & akun tampil, tambah cabang "LTQ Surabaya" berhasil
+
 ### M6
 - Status: ✅ selesai (8 Nov 2026)
 - Backend:
@@ -189,6 +199,7 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
+- Cicilan SPP (pembayaran bertahap) — permintaan 8 Nov 2026
 - M7-A: Backend bendahara (kas masuk/keluar, rekap, penggajian, export)
 
 ## Catatan Pindah IDE

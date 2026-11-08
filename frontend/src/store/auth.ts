@@ -71,7 +71,7 @@ export const useAuth = create<AuthState>()(
             email: data.user.email,
             role: data.user.role,
             branchId: data.user.branchId,
-            nama: data.user.email.split("@")[0],
+            nama: data.user.name ?? data.user.email.split("@")[0],
           },
           accessToken: data.accessToken,
         });

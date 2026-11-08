@@ -109,6 +109,7 @@ model Branch {
 model User {
   id           Int      @id @default(autoincrement())
   branchId     Int?
+  name         String?
   email        String   @unique
   passwordHash String
   role         UserRole

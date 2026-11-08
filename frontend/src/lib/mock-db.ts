@@ -24,6 +24,8 @@ interface MockState {
   leaves: { id: number; teacherId: number; dateStart: string; dateEnd: string; reason: string | null; badalTeacherId: number | null; status: string; createdAt: string }[];
   reportCards: { id: number; studentId: number; classId: number; period: string; finalScore: number | null; teacherNotes: string | null; levelRecommendation: string | null; issuedAt: string; class: { id: number; name: string } }[];
   levelRequests: { id: number; studentId: number; classId: number; fromLevel: string | null; toLevel: string; notes: string | null; status: string; createdAt: string }[];
+  branches: { id: number; code: string; name: string; address: string | null; phone: string | null; bankAccount: string | null; isActive: boolean }[];
+  admins: { id: number; name: string; email: string; role: string; branchId: number; isActive: boolean }[];
   nextProgramId: number;
   nextTeacherId: number;
   nextClassId: number;
@@ -35,6 +37,8 @@ interface MockState {
   nextLeaveId: number;
   nextReportId: number;
   nextLevelReqId: number;
+  nextBranchId: number;
+  nextAdminId: number;
 }
 
 function seedBase() {
@@ -219,6 +223,14 @@ function seed(): MockState {
   const reportCards: MockState["reportCards"] = [
     { id: 1, studentId: 1, classId: 1, period: "2026-S1", finalScore: 88, teacherNotes: "Bacaan lancar, tajwid baik", levelRecommendation: "Naik ke Level 2", issuedAt: "2026-11-07T00:00:00.000Z", class: { id: 1, name: "Kelas Tahsin A" } },
   ];
+  const branches: MockState["branches"] = [
+    { id: 1, code: "JKT", name: "LTQ Markaz AlQuran", address: "Jakarta", phone: "021123456", bankAccount: "1234567890 (BSI)", isActive: true },
+  ];
+  const admins: MockState["admins"] = [
+    { id: 2, name: "Ust. Ahmad Fauzi", email: "admin@ltq.id", role: "ADMIN_CABANG", branchId: 1, isActive: true },
+    { id: 4, name: "Ustazah Maryam", email: "tu@ltq.id", role: "TU", branchId: 1, isActive: true },
+    { id: 5, name: "Ust. Rahman Hakim", email: "bendahara@ltq.id", role: "BENDAHARA", branchId: 1, isActive: true },
+  ];
   const levelRequests: MockState["levelRequests"] = [
     { id: 1, studentId: 1, classId: 1, fromLevel: "Level 1", toLevel: "Level 2", notes: "Sudah lancar", status: "pending", createdAt: "2026-11-07T00:00:00.000Z" },
   ];
@@ -233,6 +245,8 @@ function seed(): MockState {
     leaves,
     reportCards,
     levelRequests,
+    branches,
+    admins,
     nextProgramId: 4,
     nextTeacherId: 5,
     nextClassId: 7,
@@ -244,6 +258,8 @@ function seed(): MockState {
     nextLeaveId: 1,
     nextReportId: 2,
     nextLevelReqId: 2,
+    nextBranchId: 2,
+    nextAdminId: 6,
   };
 }
 
@@ -931,6 +947,109 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
       if (req2.status !== "pending") throw new MockApiError("Pengajuan ini sudah diproses.", 409);
       req2.status = "rejected";
       return { request: req2, message: "Pengajuan kenaikan level ditolak." } as T;
+    }
+  }
+
+  // ── CABANG & AKUN (M9) ──
+  if (resource === "branches") {
+    if (m === "GET" && !idPart) {
+      const rows = state.branches.map((b) => ({
+        ...b,
+        _count: {
+          students: b.id === 1 ? state.students.length : 0,
+          classes: b.id === 1 ? state.classes.length : 0,
+          users: b.id === 1 ? state.teachers.filter((t) => t.isActive).length : 0,
+        },
+      }));
+      return { branches: rows } as T;
+    }
+    if (m === "POST" && !idPart) {
+      const name = String(payload.name ?? "").trim();
+      const code = String(payload.code ?? "").trim().toUpperCase();
+      if (name.length < 2) throw new MockApiError("Nama cabang minimal 2 karakter");
+      if (code.length < 2) throw new MockApiError("Kode cabang minimal 2 karakter");
+      if (state.branches.some((b) => b.code === code)) throw new MockApiError(`Kode cabang "${code}" sudah digunakan.`, 409);
+      const branch = {
+        id: state.nextBranchId++,
+        code,
+        name,
+        address: payload.address ? String(payload.address) : null,
+        phone: payload.phone ? String(payload.phone) : null,
+        bankAccount: payload.bankAccount ? String(payload.bankAccount) : null,
+        isActive: true,
+      };
+      state.branches.push(branch);
+      return { branch, message: "Cabang berhasil ditambahkan." } as T;
+    }
+    if (m === "PUT" && id) {
+      const branch = state.branches.find((b) => b.id === id);
+      if (!branch) throw new MockApiError("Cabang tidak ditemukan.", 404);
+      if (payload.name !== undefined) branch.name = String(payload.name).trim();
+      if (payload.code !== undefined) branch.code = String(payload.code).trim().toUpperCase();
+      if (payload.address !== undefined) branch.address = payload.address ? String(payload.address) : null;
+      if (payload.phone !== undefined) branch.phone = payload.phone ? String(payload.phone) : null;
+      if (payload.bankAccount !== undefined) branch.bankAccount = payload.bankAccount ? String(payload.bankAccount) : null;
+      if (payload.isActive !== undefined) branch.isActive = Boolean(payload.isActive);
+      return { branch, message: "Cabang berhasil diperbarui." } as T;
+    }
+    if (m === "DELETE" && id) {
+      const branch = state.branches.find((b) => b.id === id);
+      if (!branch) throw new MockApiError("Cabang tidak ditemukan.", 404);
+      if (branch.isActive && state.branches.filter((b) => b.isActive).length <= 1) {
+        throw new MockApiError("Cabang aktif terakhir tidak boleh dinonaktifkan.", 409);
+      }
+      branch.isActive = false;
+      return { branch, message: "Cabang dinonaktifkan." } as T;
+    }
+  }
+
+  if (resource === "admins") {
+    if (m === "GET" && !idPart) {
+      const rows = state.admins.map((a) => ({
+        ...a,
+        branch: state.branches.find((b) => b.id === a.branchId) ?? null,
+      }));
+      return { users: rows } as T;
+    }
+    if (m === "POST" && !idPart) {
+      const name = String(payload.name ?? "").trim();
+      const email = String(payload.email ?? "").trim().toLowerCase();
+      const password = String(payload.password ?? "");
+      const role = String(payload.role ?? "");
+      const branchId = Number(payload.branchId);
+      if (name.length < 2) throw new MockApiError("Nama minimal 2 karakter");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new MockApiError("Email tidak valid");
+      if (password.length < 8) throw new MockApiError("Password minimal 8 karakter");
+      if (!/\d/.test(password)) throw new MockApiError("Password wajib mengandung angka");
+      if (!["ADMIN_CABANG", "TU", "BENDAHARA"].includes(role)) throw new MockApiError("Role tidak diizinkan.");
+      if (!state.branches.some((b) => b.id === branchId)) throw new MockApiError("Cabang tidak ditemukan.", 404);
+      if (state.admins.some((a) => a.email === email)) throw new MockApiError("Email sudah digunakan akun lain.", 409);
+      const user = { id: state.nextAdminId++, name, email, role, branchId, isActive: true };
+      state.admins.push(user);
+      return { user: { ...user, branch: state.branches.find((b) => b.id === branchId) }, message: "Akun berhasil dibuat." } as T;
+    }
+    if (m === "PUT" && id && !action) {
+      const user = state.admins.find((a) => a.id === id);
+      if (!user) throw new MockApiError("Akun tidak ditemukan.", 404);
+      if (payload.name !== undefined) user.name = String(payload.name).trim();
+      if (payload.email !== undefined) user.email = String(payload.email).trim().toLowerCase();
+      if (payload.role !== undefined) user.role = String(payload.role);
+      if (payload.branchId !== undefined) user.branchId = Number(payload.branchId);
+      if (payload.isActive !== undefined) user.isActive = Boolean(payload.isActive);
+      return { user: { ...user, branch: state.branches.find((b) => b.id === user.branchId) }, message: "Akun berhasil diperbarui." } as T;
+    }
+    if (m === "POST" && id && action === "reset-password") {
+      const user = state.admins.find((a) => a.id === id);
+      if (!user) throw new MockApiError("Akun tidak ditemukan.", 404);
+      const password = String(payload.password ?? "");
+      if (password.length < 8 || !/\d/.test(password)) throw new MockApiError("Password minimal 8 karakter dan mengandung angka.");
+      return { message: "Password berhasil direset." } as T;
+    }
+    if (m === "POST" && id && action === "nonaktifkan") {
+      const user = state.admins.find((a) => a.id === id);
+      if (!user) throw new MockApiError("Akun tidak ditemukan.", 404);
+      user.isActive = false;
+      return { user: { id: user.id, isActive: false }, message: "Akun dinonaktifkan." } as T;
     }
   }
 

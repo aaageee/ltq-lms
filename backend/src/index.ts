@@ -12,6 +12,8 @@ import guruRoutes from "./routes/guru";
 import attendanceRoutes from "./routes/attendances";
 import reportCardRoutes from "./routes/reportCards";
 import levelAdminRoutes, { studentLevelRouter } from "./routes/levels";
+import branchRoutes from "./routes/branches";
+import adminRoutes from "./routes/admins";
 
 dotenv.config();
 
@@ -39,6 +41,8 @@ app.use("/api/guru", guruRoutes);
 app.use("/api/attendances", attendanceRoutes);
 app.use("/api/report-cards", reportCardRoutes);
 app.use("/api/kenaikan-level", levelAdminRoutes);
+app.use("/api/branches", branchRoutes);
+app.use("/api/admins", adminRoutes);
 
 // 404 untuk endpoint tak dikenal
 app.use((_req: Request, res: Response) => {

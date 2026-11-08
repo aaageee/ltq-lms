@@ -70,6 +70,7 @@ router.post("/login", asyncHandler(async (req: Request, res: Response) => {
     accessToken,
     user: {
       id: user.id,
+      name: user.name,
       email: user.email,
       role: user.role,
       branchId: user.branchId,
@@ -118,7 +119,7 @@ router.post("/logout", (_req: Request, res: Response) => {
 router.get("/me", verifyToken, asyncHandler(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.sub },
-    select: { id: true, email: true, role: true, branchId: true, isActive: true },
+    select: { id: true, name: true, email: true, role: true, branchId: true, isActive: true },
   });
   if (!user || !user.isActive) {
     res.status(401).json({ message: "Akun tidak ditemukan atau tidak aktif." });
