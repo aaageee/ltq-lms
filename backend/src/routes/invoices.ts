@@ -80,19 +80,27 @@ router.get(
 
     const invoices = await prisma.invoice.findMany({
       where: { branchId, status: { in: ["unpaid", "overdue"] } },
-      include: { student: { select: { id: true, noid: true, name: true, whatsapp: true } } },
+      include: {
+        student: { select: { id: true, noid: true, name: true, whatsapp: true } },
+        payments: { select: { amount: true } },
+      },
       orderBy: { dueDate: "asc" },
     });
 
     const now = Date.now();
-    const data = invoices.map((inv) => ({
-      ...inv,
-      daysOverdue: Math.max(0, Math.floor((now - new Date(inv.dueDate).getTime()) / 86_400_000)),
-    }));
+    const data = invoices.map((inv) => {
+      const paidAmount = inv.payments.reduce((sum, p) => sum + p.amount, 0);
+      return {
+        ...inv,
+        paidAmount,
+        remaining: Math.max(0, inv.totalAmount - paidAmount),
+        daysOverdue: Math.max(0, Math.floor((now - new Date(inv.dueDate).getTime()) / 86_400_000)),
+      };
+    });
 
     res.json({
       tunggakan: data,
-      totalNominal: data.reduce((sum, i) => sum + i.totalAmount, 0),
+      totalNominal: data.reduce((sum, i) => sum + i.remaining, 0),
       jumlah: data.length,
     });
   })
@@ -164,7 +172,7 @@ router.put(
     }
 
     try {
-      const { invoice, payment } = await confirmPayment({
+      const { invoice, payment, paidAmount, remaining, fullyPaid } = await confirmPayment({
         invoiceId: id,
         branchId,
         userId: req.user!.sub,
@@ -177,11 +185,20 @@ router.put(
       const message = waKonfirmasiBayar({
         nama: invoice.student.name,
         periode: invoice.period,
-        nominal: formatNominal(invoice.totalAmount),
+        nominal: formatNominal(payment.amount),
       });
       sendWABackground(invoice.student.whatsapp, message, "#2");
 
-      res.json({ invoice, payment, message: "Pembayaran berhasil dikonfirmasi." });
+      res.json({
+        invoice,
+        payment,
+        paidAmount,
+        remaining,
+        fullyPaid,
+        message: fullyPaid
+          ? "Pembayaran berhasil dikonfirmasi — tagihan LUNAS."
+          : `Cicilan diterima. Sisa tagihan: Rp ${formatNominal(remaining)}.`,
+      });
     } catch (err) {
       if (err instanceof ServiceError) {
         res.status(err.status).json({ message: err.message, ...(err.extra ?? {}) });
@@ -250,8 +267,8 @@ router.get(
       res.status(404).json({ message: "Invoice tidak ditemukan." });
       return;
     }
-    if (invoice.status !== "paid") {
-      res.status(409).json({ message: "Kwitansi hanya tersedia untuk invoice yang sudah lunas." });
+    if (invoice.payments.length === 0) {
+      res.status(409).json({ message: "Kwitansi belum tersedia — belum ada pembayaran." });
       return;
     }
 

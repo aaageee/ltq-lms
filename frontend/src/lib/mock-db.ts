@@ -643,8 +643,16 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
     if (m === "GET" && idPart === "tunggakan") {
       const rows = state.invoices.filter((i) => i.status === "unpaid" || i.status === "overdue");
       const now = Date.now();
-      const data = rows.map((i) => ({ ...i, daysOverdue: Math.max(0, Math.floor((now - new Date(i.dueDate).getTime()) / 86400000)) }));
-      return { tunggakan: data, totalNominal: data.reduce((s2, i) => s2 + i.totalAmount, 0), jumlah: data.length } as T;
+      const data = rows.map((i) => {
+        const paidAmount = i.payments.reduce((sum, p) => sum + p.amount, 0);
+        return {
+          ...i,
+          paidAmount,
+          remaining: Math.max(0, i.totalAmount - paidAmount),
+          daysOverdue: Math.max(0, Math.floor((now - new Date(i.dueDate).getTime()) / 86400000)),
+        };
+      });
+      return { tunggakan: data, totalNominal: data.reduce((s2, i) => s2 + (i.remaining ?? i.totalAmount), 0), jumlah: data.length } as T;
     }
 
     if (m === "POST" && !idPart) {
@@ -683,10 +691,12 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
       if (invoice.status === "paid") throw new MockApiError("Invoice ini sudah lunas.", 409);
       if (invoice.status === "cancelled") throw new MockApiError("Invoice sudah dibatalkan.", 409);
       const amount = Number(payload.amount);
-      if (Math.abs(amount - invoice.totalAmount) > 0.01) {
-        throw new MockApiError(
-          `Nominal pembayaran harus sama dengan total tagihan (Rp ${new Intl.NumberFormat("id-ID").format(invoice.totalAmount)}). Pembayaran parsial tidak diperbolehkan.`
-        );
+      const alreadyPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+      const remaining = invoice.totalAmount - alreadyPaid;
+      if (remaining <= 0.01) throw new MockApiError("Invoice ini sudah lunas.", 409);
+      if (!Number.isFinite(amount) || amount <= 0) throw new MockApiError("Nominal pembayaran wajib lebih dari 0.");
+      if (amount > remaining + 0.01) {
+        throw new MockApiError(`Nominal melebihi sisa tagihan (Rp ${new Intl.NumberFormat("id-ID").format(remaining)}).`);
       }
       const payment = {
         id: Date.now(),
@@ -696,9 +706,20 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
         confirmedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       };
-      invoice.status = "paid";
+      const newPaid = alreadyPaid + amount;
+      const fullyPaid = newPaid >= invoice.totalAmount - 0.01;
+      invoice.status = fullyPaid ? "paid" : "unpaid";
       invoice.payments = [payment, ...invoice.payments];
-      return { invoice, payment, message: "Pembayaran berhasil dikonfirmasi." } as T;
+      return {
+        invoice,
+        payment,
+        paidAmount: newPaid,
+        remaining: Math.max(0, invoice.totalAmount - newPaid),
+        fullyPaid,
+        message: fullyPaid
+          ? "Pembayaran berhasil dikonfirmasi — tagihan LUNAS."
+          : `Cicilan diterima. Sisa tagihan: Rp ${new Intl.NumberFormat("id-ID").format(invoice.totalAmount - newPaid)}.`,
+      } as T;
     }
 
     if (m === "PUT" && id && action === "batalkan") {

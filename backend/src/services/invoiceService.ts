@@ -97,11 +97,25 @@ export async function confirmPayment(params: {
   if (invoice.status === "paid") throw new ServiceError(409, "Invoice ini sudah lunas.");
   if (invoice.status === "cancelled") throw new ServiceError(409, "Invoice sudah dibatalkan.");
 
-  if (Math.abs(amount - invoice.totalAmount) > 0.01) {
+  // ── Dukungan cicilan: hitung sisa tagihan ──
+  const paidAgg = await prisma.payment.aggregate({
+    where: { invoiceId: invoice.id },
+    _sum: { amount: true },
+  });
+  const alreadyPaid = paidAgg._sum.amount ?? 0;
+  const remaining = invoice.totalAmount - alreadyPaid;
+
+  if (remaining <= 0.01) {
+    throw new ServiceError(409, "Invoice ini sudah lunas.");
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new ServiceError(400, "Nominal pembayaran wajib lebih dari 0.");
+  }
+  if (amount > remaining + 0.01) {
     throw new ServiceError(
       400,
-      `Nominal pembayaran harus sama dengan total tagihan (Rp ${formatNominal(invoice.totalAmount)}). Pembayaran parsial tidak diperbolehkan.`,
-      { totalAmount: invoice.totalAmount }
+      `Nominal melebihi sisa tagihan (Rp ${formatNominal(remaining)}).`,
+      { totalAmount: invoice.totalAmount, alreadyPaid, remaining }
     );
   }
 
@@ -118,13 +132,22 @@ export async function confirmPayment(params: {
       },
     });
 
+    const newPaid = alreadyPaid + amount;
+    const fullyPaid = newPaid >= invoice.totalAmount - 0.01;
+
     const updated = await tx.invoice.update({
       where: { id: invoice.id },
-      data: { status: "paid" },
+      data: { status: fullyPaid ? "paid" : "unpaid" },
       include: { student: { select: { id: true, noid: true, name: true, whatsapp: true } } },
     });
 
-    return { invoice: updated, payment };
+    return {
+      invoice: updated,
+      payment,
+      paidAmount: newPaid,
+      remaining: Math.max(0, invoice.totalAmount - newPaid),
+      fullyPaid,
+    };
   });
 
   return result;

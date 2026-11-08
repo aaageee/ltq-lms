@@ -40,10 +40,19 @@ function fmtDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(new Date(value));
 }
 
-function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
-  if (status === "paid") return <Badge variant="success">Lunas</Badge>;
-  if (status === "overdue") return <Badge variant="danger">Terlambat</Badge>;
-  if (status === "cancelled") return <Badge variant="secondary">Dibatalkan</Badge>;
+function paidOf(inv: InvoiceRow) {
+  return inv.paidAmount ?? inv.payments.reduce((sum, p) => sum + p.amount, 0);
+}
+
+function remainingOf(inv: InvoiceRow) {
+  return inv.remaining ?? Math.max(0, inv.totalAmount - paidOf(inv));
+}
+
+function StatusBadge({ inv }: { inv: InvoiceRow }) {
+  if (inv.status === "paid") return <Badge variant="success">Lunas</Badge>;
+  if (inv.status === "cancelled") return <Badge variant="secondary">Dibatalkan</Badge>;
+  if (paidOf(inv) > 0) return <Badge variant="warning">Dicicil</Badge>;
+  if (inv.status === "overdue") return <Badge variant="danger">Terlambat</Badge>;
   return <Badge variant="warning">Belum bayar</Badge>;
 }
 
@@ -363,10 +372,18 @@ export default function SppPage() {
                               <p className="font-mono text-[11px] text-slate-400">{inv.student.noid}</p>
                             </TableCell>
                             <TableCell className="text-slate-600">{inv.period}</TableCell>
-                            <TableCell className="text-right font-medium">{formatRupiah(inv.totalAmount)}</TableCell>
+                            <TableCell className="text-right">
+                              <p className="font-medium">{formatRupiah(inv.totalAmount)}</p>
+                              {paidOf(inv) > 0 && inv.status !== "paid" && (
+                                <p className="text-[11px] text-slate-500">
+                                  dibayar {formatRupiah(paidOf(inv))} • sisa{" "}
+                                  <span className="font-semibold text-red-600">{formatRupiah(remainingOf(inv))}</span>
+                                </p>
+                              )}
+                            </TableCell>
                             <TableCell className="text-slate-600">{fmtDate(inv.dueDate)}</TableCell>
                             <TableCell>
-                              <StatusBadge status={inv.status} />
+                              <StatusBadge inv={inv} />
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex flex-wrap justify-end gap-1">
@@ -376,7 +393,7 @@ export default function SppPage() {
                                       size="sm"
                                       onClick={() => {
                                         setPayTarget(inv);
-                                        setPayForm({ amount: String(inv.totalAmount), method: "transfer" });
+                                        setPayForm({ amount: String(remainingOf(inv)), method: "transfer" });
                                       }}
                                     >
                                       <CheckCircle2 size={14} /> Bayar
@@ -397,7 +414,7 @@ export default function SppPage() {
                                     </Button>
                                   </>
                                 )}
-                                {inv.status === "paid" && (
+                                {inv.payments.length > 0 && (
                                   <Button variant="outline" size="sm" onClick={() => downloadKwitansi(inv)}>
                                     <Download size={14} /> Kwitansi
                                   </Button>
@@ -474,7 +491,12 @@ export default function SppPage() {
                             <p className="font-mono text-[11px] text-slate-400">{inv.student.noid}</p>
                           </TableCell>
                           <TableCell className="text-slate-600">{inv.period}</TableCell>
-                          <TableCell className="text-right font-medium">{formatRupiah(inv.totalAmount)}</TableCell>
+                          <TableCell className="text-right">
+                            <p className="font-medium">{formatRupiah(remainingOf(inv))}</p>
+                            {paidOf(inv) > 0 && (
+                              <p className="text-[11px] text-slate-500">dari {formatRupiah(inv.totalAmount)}</p>
+                            )}
+                          </TableCell>
                           <TableCell className="text-slate-600">{fmtDate(inv.dueDate)}</TableCell>
                           <TableCell>
                             {inv.daysOverdue && inv.daysOverdue > 0 ? (
@@ -501,7 +523,7 @@ export default function SppPage() {
         title="Konfirmasi Pembayaran"
         description={
           payTarget
-            ? `${payTarget.student.name} • ${payTarget.period} • tagihan ${formatRupiah(payTarget.totalAmount)}`
+            ? `${payTarget.student.name} • ${payTarget.period} • total ${formatRupiah(payTarget.totalAmount)}`
             : undefined
         }
         footer={
@@ -518,7 +540,11 @@ export default function SppPage() {
                   { onSuccess: () => setPayTarget(null) }
                 );
               }}
-              disabled={confirmPayment.isPending || Number(payForm.amount) <= 0}
+              disabled={
+                confirmPayment.isPending ||
+                Number(payForm.amount) <= 0 ||
+                (payTarget ? Number(payForm.amount) > remainingOf(payTarget) + 0.01 : false)
+              }
             >
               {confirmPayment.isPending ? "Memproses…" : "Konfirmasi Lunas"}
             </Button>
@@ -526,6 +552,22 @@ export default function SppPage() {
         }
       >
         <div className="space-y-3">
+          {payTarget && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+              <div className="flex justify-between">
+                <span>Total tagihan</span>
+                <span className="font-medium">{formatRupiah(payTarget.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Sudah dibayar</span>
+                <span className="font-medium">{formatRupiah(paidOf(payTarget))}</span>
+              </div>
+              <div className="mt-1 flex justify-between border-t border-slate-200 pt-1">
+                <span className="font-semibold text-slate-700">Sisa tagihan</span>
+                <span className="font-bold text-red-600">{formatRupiah(remainingOf(payTarget))}</span>
+              </div>
+            </div>
+          )}
           <div>
             <Label htmlFor="pay-amount">Nominal Diterima *</Label>
             <Input
@@ -535,7 +577,7 @@ export default function SppPage() {
               onChange={(e) => setPayForm((f) => ({ ...f, amount: e.target.value }))}
             />
             <p className="mt-1 text-[11px] text-slate-400">
-              Wajib sama dengan total tagihan — pembayaran parsial tidak diperbolehkan.
+              Boleh dicicil — masukkan nominal ≤ sisa tagihan. Invoice otomatis LUNAS saat sisa terpenuhi.
             </p>
           </div>
           <div>

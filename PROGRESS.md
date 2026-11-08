@@ -16,6 +16,7 @@ Branch   : development
 - [x] M3-A — Backend PSB: input peserta, NoID, assign kelas, upload ke /uploads
 - [x] M3-B — Frontend PSB: form multi-step + halaman detail peserta
 - [x] M4-A — Backend SPP: invoice, konfirmasi bayar (TU|BENDAHARA), kwitansi PDF
+- [x] Cicilan SPP — pembayaran bertahap/parsial (permintaan 8 Nov 2026)
 - [x] M4-B — Frontend SPP: buat invoice, konfirmasi, download kwitansi
 - [x] M4-C — Integrasi Fonnte WA (template persis PRD §15, trigger #1–#3, #5) — ⏸️ token Fonnte belum ada
 - [x] M5   — Guru: presensi + nilai (1 transaksi) + cuti badal
@@ -30,6 +31,17 @@ Branch   : development
 
 ## Catatan Per Modul
 <!-- Isi setelah tiap modul selesai -->
+### Cicilan SPP (permintaan 8 Nov 2026)
+- Status: ✅ selesai (8 Nov 2026)
+- **Perubahan aturan**: pembayaran tidak lagi wajib penuh. Nominal boleh **≤ sisa tagihan**; invoice otomatis `paid` saat sisa terpenuhi
+- Backend `confirmPayment`: hitung `alreadyPaid` dari tabel `payments`, tolak nominal > sisa (400 dengan info sisa), status tetap `unpaid` selama belum lunas
+- Response & list invoice menyertakan `paidAmount` dan `remaining`; `/invoices/tunggakan` menjumlahkan **sisa** (bukan total) dan menampilkan `paidAmount`/`remaining`
+- **Kwitansi PDF** bisa diunduh setelah pembayaran pertama (cicilan), bukan hanya saat lunas
+- WA #2 memakai nominal pembayaran yang diterima (bukan total invoice)
+- Frontend SPP: badge **"Dicicil"**, baris menampilkan "dibayar X • sisa Y", dialog konfirmasi menampilkan total/dibayar/sisa dan default nominal = sisa, tombol Bayar dinonaktifkan jika melebihi sisa
+- ✅ Uji backend: cicil 100rb (status unpaid, sisa 200rb), kwitansi PDF 200, tolak 250rb (>sisa), cicil 200rb → LUNAS, bayar lagi 409
+- ✅ Uji browser: dialog sisa tagihan, bayar 100rb → badge Dicicil + tombol Kwitansi muncul
+
 ### M9
 - Status: ✅ selesai (8 Nov 2026) — sebelumnya ditunda, kini diaktifkan
 - **Schema**: kolom `User.name` ditambahkan (migration `add_user_name`) → nama tampil di topbar; seeder mengisi nama 5 akun; login & `/me` mengembalikan `name`
@@ -199,7 +211,6 @@ Branch   : development
 
 ## Lanjut Berikutnya
 <!-- Isi modul + sub-prompt yang akan dikerjakan sesi berikutnya -->
-- Cicilan SPP (pembayaran bertahap) — permintaan 8 Nov 2026
 - M7-A: Backend bendahara (kas masuk/keluar, rekap, penggajian, export)
 
 ## Catatan Pindah IDE

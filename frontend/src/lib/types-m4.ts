@@ -28,5 +28,7 @@ export interface InvoiceRow {
   createdAt: string;
   student: { id: number; noid: string; name: string; whatsapp: string };
   payments: InvoicePayment[];
+  paidAmount?: number;
+  remaining?: number;
   daysOverdue?: number;
 }
